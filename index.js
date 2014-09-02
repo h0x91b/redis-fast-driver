@@ -79,7 +79,7 @@ Redis.prototype = {
 				if(slots.length>0) {
 					slots.forEach(function(slot){
 						var t = slot.split('-');
-						for(var i=t[0];i<t[1];i++)
+						for(var i=parseInt(t[0],10);i<=parseInt(t[1],10);i++)
 							hashslots[i] = node;
 					});
 					node.redis = new redis.RedisConnector();
