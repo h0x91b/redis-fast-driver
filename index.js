@@ -111,11 +111,23 @@ Redis.prototype = {
 	cmd: function(arr, cb){
 		if(!Array.isArray(arr)) 
 			throw 'first argument must be a Array';
+		if(typeof cb === 'undefined') {
+			cb = function(e) { if(e) { console.log('error on redis command: %s', e); } };
+		}
 		if(!this.isConnected) {
 			this.queue.push({arr:arr,cb:cb});
 			return;
 		}
-		console.log('calc where to go...');
+		if(arr.length < 2) {
+			throw 'Don`t know where to go :(';
+		}
+		var hashslot = this.keyToSlot(arr[1]);
+		var slot = this.hashslots[hashslot];
+		if(!slot) {
+			cb('Redis hashslot #'+hashslot+' is unassgined');
+			return;
+		}
+		slot.redis.redisCmd(arr, cb);
 	},
 	// #################################################################################
 	// # Libraries
