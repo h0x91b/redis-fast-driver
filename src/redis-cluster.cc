@@ -125,6 +125,7 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 		return;
 	}
 	Local<Value> resp;
+	Local<Array> arr = Array::New();
 	
 	switch(reply->type) {
 	case REDIS_REPLY_INTEGER:
@@ -133,6 +134,20 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 	case REDIS_REPLY_STATUS:
 	case REDIS_REPLY_STRING:
 		resp = Local<Value>::New(String::New(reply->str));
+		break;
+	case REDIS_REPLY_ARRAY:
+		for (size_t i=0; i<reply->elements; i++) {
+			printf("el %d/%d type %d is %s\n", i, reply->elements, reply->element[i]->type, reply->element[i]->str);
+			if(reply->element[i]->type == REDIS_REPLY_STRING)
+				arr->Set(Number::New(i), String::New(reply->element[i]->str));
+			else if(reply->element[i]->type == REDIS_REPLY_INTEGER)
+				arr->Set(Number::New(i), Number::New(reply->element[i]->integer));
+			else {
+				ThrowException(Exception::TypeError(String::New("Protocol error, unknwown type in Array")));
+				return;
+			}
+		}
+		resp = Local<Value>::New(arr);
 		break;
 	default:
 		printf("[%d] protocol error type %d\n", callback_id, reply->type);
