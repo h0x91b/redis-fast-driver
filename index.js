@@ -10,10 +10,11 @@ function Redis(opts){
 	self.isConnected = false;
 	self.hashslots = [];
 	self.opts = opts;
+	self.opts.onError = self.opts.onError || function onRedisError(e){ throw e; };
 	self.queue = [];
 	var r = new redis.RedisConnector();
 	r.connect(opts.host, opts.port, function(e){
-		if(e) throw e;
+		if(e) return self.opts.onError(e);
 		r.redisCmd(['cluster', 'nodes'], self._getTopology.bind(self));
 	});
 };
@@ -55,7 +56,7 @@ var XMODEMCRC16Lookup = [
 
 Redis.prototype = {
 	_getTopology: function(e, d){
-		if(e) throw e;
+		if(e) return this.opts.onError(e);
 		var self = this;
 		var a = d.split('\n');
 		var topology = [];
@@ -118,14 +119,14 @@ Redis.prototype = {
 		if(!Array.isArray(arr)) 
 			throw 'first argument must be a Array';
 		if(typeof cb === 'undefined') {
-			cb = function(e) { if(e) { console.log('error on redis command: %s', e); } };
+			cb = function(e) { if(e) { this.opts.onError(e); } };
 		}
 		if(!this.isConnected) {
 			this.queue.push({arr:arr,cb:cb});
 			return;
 		}
 		if(arr.length < 2) {
-			throw 'Don`t know where to go :(';
+			return this.opts.onError('Don`t know where to go :(');
 		}
 		var hashslot = this.keyToSlot(arr[1]);
 		var slot = this.hashslots[hashslot];

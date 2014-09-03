@@ -1,5 +1,12 @@
 var Redis = require('../');
-var redis = new Redis({host:'127.0.0.1', port: 7001, onConnect: onConnect});
+var redis = new Redis({
+	host:'127.0.0.1', 
+	port: 7001, 
+	onConnect: onConnect,
+	onError: function(e) {
+		console.log('redis error: ', e);
+	}
+});
 
 redis.cmd(['set', 'queue_check', 'this queue value queued before redis actually connected']);
 redis.cmd(['get', 'queue_check'], function(e, data){
@@ -7,6 +14,7 @@ redis.cmd(['get', 'queue_check'], function(e, data){
 	console.log('queue is working, value: '+data);
 });
 redis.cmd(['del', 'queue_check']);
+redis.cmd(['ping']);
 
 function onConnect() {
 	console.log('cluster ready');
