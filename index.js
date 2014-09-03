@@ -13,9 +13,12 @@ function Redis(opts){
 	self.opts.onError = self.opts.onError || function onRedisError(e){ throw e; };
 	self.queue = [];
 	var r = new redis.RedisConnector();
-	r.connect(opts.host, opts.port, function(e){
+	r.connect(opts.host, opts.port, function onConnect(e){
 		if(e) return self.opts.onError(e);
 		r.redisCmd(['cluster', 'nodes'], self._getTopology.bind(self));
+	}, function onDisconnect(e){
+		if(e) return self.opts.onError(e);
+		if(opts.onDisconnect) opts.onDisconnect(); 
 	});
 };
 
@@ -85,24 +88,30 @@ Redis.prototype = {
 					});
 					node.redis = new redis.RedisConnector();
 					process.nextTick(function(){
-						node.redis.connect(node.host, node.port, function(e){
-							if(e) {
-								console.log('failed to connect to redis %s:%s error: %s', node.host, node.port, e);
-								return;
-							}
-							console.log('connected to redis %s:%s remain %s redises', node.host, node.port, masters.length - ++masters_ready);
-							if(masters_ready == masters.length) {
-								self.isConnected = true;
-								self.hashslots = hashslots;
-								if(self.queue.length > 0) {
-									self.queue.forEach(function(cmd){
-										self.cmd(cmd.arr,cmd.cb);
-									});
-									self.queue = [];
+						node.redis.connect(node.host, node.port, 
+							function(e){
+								if(e) {
+									console.log('failed to connect to redis %s:%s error: %s', node.host, node.port, e);
+									return;
 								}
-								if(self.opts.onConnect) self.opts.onConnect();
+								console.log('connected to redis %s:%s remain %s redises', node.host, node.port, masters.length - ++masters_ready);
+								if(masters_ready == masters.length) {
+									self.isConnected = true;
+									self.hashslots = hashslots;
+									if(self.queue.length > 0) {
+										self.queue.forEach(function(cmd){
+											self.cmd(cmd.arr,cmd.cb);
+										});
+										self.queue = [];
+									}
+									if(self.opts.onConnect) self.opts.onConnect();
+								}
+							},
+							function onDisconnect(e){
+								if(e) return self.opts.onError(e);
+								if(opts.onDisconnect) opts.onDisconnect(); 
 							}
-						});
+						);
 					});
 				}
 				masters.push(node);

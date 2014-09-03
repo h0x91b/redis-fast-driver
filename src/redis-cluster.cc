@@ -77,10 +77,25 @@ void RedisConnector::connectCallback(const redisAsyncContext *c, int status) {
 	self->connectCb->Call(Context::GetCurrent()->Global(), 1, argv);
 }
 
+void RedisConnector::disconnectCallback(const redisAsyncContext *c, int status) {
+	RedisConnector *self = (RedisConnector*)c->data;
+	if (status != REDIS_OK) {
+		Local<Value> argv[1] = {
+			Local<Value>::New(String::New(c->errstr))
+		};
+		self->disconnectCb->Call(Context::GetCurrent()->Global(), 1, argv);
+		return;
+	}
+	Local<Value> argv[1] = {
+		Local<Value>::New(Null())
+	};
+	self->disconnectCb->Call(Context::GetCurrent()->Global(), 1, argv);
+}
+
 Handle<Value> RedisConnector::Connect(const Arguments& args) {
 	printf("%s\n", __PRETTY_FUNCTION__);
 	HandleScope scope;
-	if(args.Length() != 3) {
+	if(args.Length() != 4) {
 		ThrowException(Exception::TypeError(String::New("Wrong arguments count")));
 		return scope.Close(Undefined());
 	}
@@ -90,6 +105,7 @@ Handle<Value> RedisConnector::Connect(const Arguments& args) {
 	const char *host = *v8str;
 	unsigned short port = (unsigned short)args[1]->NumberValue();
 	self->connectCb = Persistent<Function>::New(Local<Function>::Cast(args[2]));
+	self->disconnectCb = Persistent<Function>::New(Local<Function>::Cast(args[3]));
 	printf("connect to %s:%d\n", host, port);
 	
 	self->c = redisAsyncConnect(host, port);
@@ -103,6 +119,7 @@ Handle<Value> RedisConnector::Connect(const Arguments& args) {
 	self->c->data = (void*)self;
 	redisLibuvAttach(self->c,loop);
 	redisAsyncSetConnectCallback(self->c,connectCallback);
+	redisAsyncSetDisconnectCallback(self->c,disconnectCallback);
 	
 	return scope.Close(Undefined());
 }
@@ -128,6 +145,9 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 	Local<Array> arr = Array::New();
 	
 	switch(reply->type) {
+	case REDIS_REPLY_NIL:
+		resp = Local<Value>::New(Null());
+		break;
 	case REDIS_REPLY_INTEGER:
 		resp = Local<Value>::New(Number::New(reply->integer));
 		break;
