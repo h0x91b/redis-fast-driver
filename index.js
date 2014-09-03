@@ -113,6 +113,7 @@ Redis.prototype = {
 			//console.log('node info: \n%o', node);
 			topology.push(node);
 		});
+		self.masters = masters;
 		//console.log('masters', masters);
 	},
 	cmd: function(arr, cb){
@@ -125,14 +126,17 @@ Redis.prototype = {
 			this.queue.push({arr:arr,cb:cb});
 			return;
 		}
+		var slot;
 		if(arr.length < 2) {
-			return this.opts.onError('Don`t know where to go :(');
-		}
-		var hashslot = this.keyToSlot(arr[1]);
-		var slot = this.hashslots[hashslot];
-		if(!slot) {
-			cb('Redis hashslot #'+hashslot+' is unassgined');
-			return;
+			//go to random master
+			slot = this.masters[Math.floor(Math.random()*this.masters.length)];
+		} else {
+			var hashslot = this.keyToSlot(arr[1]);
+			slot = this.hashslots[hashslot];
+			if(!slot) {
+				cb('Redis hashslot #'+hashslot+' is unassgined');
+				return;
+			}
 		}
 		slot.redis.redisCmd(arr, cb);
 	},

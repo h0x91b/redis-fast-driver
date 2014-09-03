@@ -14,7 +14,9 @@ redis.cmd(['get', 'queue_check'], function(e, data){
 	console.log('queue is working, value: '+data);
 });
 redis.cmd(['del', 'queue_check']);
-redis.cmd(['ping']);
+redis.cmd(['ping'], function(e,d){
+	console.log(d);
+});
 
 function onConnect() {
 	console.log('cluster ready');
