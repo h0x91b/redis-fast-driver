@@ -93,6 +93,12 @@ Redis.prototype = {
 							if(masters_ready == masters.length) {
 								self.isConnected = true;
 								self.hashslots = hashslots;
+								if(self.queue.length > 0) {
+									self.queue.forEach(function(cmd){
+										self.cmd(cmd.arr,cmd.cb);
+									});
+									self.queue = [];
+								}
 								if(self.opts.onConnect) self.opts.onConnect();
 							}
 						});
