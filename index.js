@@ -8,6 +8,7 @@ function Redis(opts){
 	}
 	var self = this;
 	self.isConnected = false;
+	self.masters = [];
 	self.hashslots = [];
 	self.opts = opts;
 	self.opts.onError = self.opts.onError || function onRedisError(e){ throw e; };
@@ -15,10 +16,11 @@ function Redis(opts){
 	var r = new redis.RedisConnector();
 	r.connect(opts.host, opts.port, function onConnect(e){
 		if(e) return self.opts.onError(e);
-		r.redisCmd(['cluster', 'nodes'], self._getTopology.bind(self));
+		r.redisCmd(['cluster', 'nodes'], function(e,d){
+			self._getTopology.call(self,e,d,r);
+		});
 	}, function onDisconnect(e){
 		if(e) return self.opts.onError(e);
-		if(opts.onDisconnect) opts.onDisconnect(); 
 	});
 };
 
@@ -58,7 +60,7 @@ var XMODEMCRC16Lookup = [
 ];
 
 Redis.prototype = {
-	_getTopology: function(e, d){
+	_getTopology: function(e, d, r){
 		if(e) return this.opts.onError(e);
 		var self = this;
 		var a = d.split('\n');
@@ -105,10 +107,12 @@ Redis.prototype = {
 										self.queue = [];
 									}
 									if(self.opts.onConnect) self.opts.onConnect();
+									r.disconnect();
 								}
 							},
 							function onDisconnect(e){
 								if(e) return self.opts.onError(e);
+								//handling needed
 								if(opts.onDisconnect) opts.onDisconnect(); 
 							}
 						);
@@ -175,5 +179,13 @@ Redis.prototype = {
 		for(var i=0;i<bytes.length;i++)
 			crc = ((crc<<8) & 0xffff) ^ XMODEMCRC16Lookup[((crc>>8)^bytes.charCodeAt(i)) & 0xff];
 		return crc % 16384;
+	},
+	disconnect: function() {
+		this.isConnected = false;
+		this.masters.forEach(function(redis){
+			redis.disconnect();
+		});
+		this.masters = [];
+		this.hashslots = [];
 	}
 };

@@ -15,11 +15,13 @@ NODE_MODULE(redis_cluster, init)
 Persistent<Function> RedisConnector::constructor;
 
 RedisConnector::RedisConnector(double value) : value_(value) {
+	printf("%s\n", __PRETTY_FUNCTION__);
 	callbacks = Persistent<Object>::New(Object::New());
 	callback_id = 1;
 }
 
 RedisConnector::~RedisConnector() {
+	printf("%s\n", __PRETTY_FUNCTION__);
 }
 
 Handle<Value> RedisConnector::PlusOne(const Arguments& args) {
@@ -39,6 +41,7 @@ void RedisConnector::Init(Handle<Object> exports) {
 	// Prototype
 	tpl->PrototypeTemplate()->Set(String::NewSymbol("plusOne"), FunctionTemplate::New(PlusOne)->GetFunction());
 	tpl->PrototypeTemplate()->Set(String::NewSymbol("connect"), FunctionTemplate::New(Connect)->GetFunction());
+	tpl->PrototypeTemplate()->Set(String::NewSymbol("disconnect"), FunctionTemplate::New(Disconnect)->GetFunction());
 	tpl->PrototypeTemplate()->Set(String::NewSymbol("redisCmd"), FunctionTemplate::New(RedisCmd)->GetFunction());
 	constructor = Persistent<Function>::New(tpl->GetFunction());
 	exports->Set(String::NewSymbol("RedisConnector"), constructor);
@@ -90,6 +93,15 @@ void RedisConnector::disconnectCallback(const redisAsyncContext *c, int status) 
 		Local<Value>::New(Null())
 	};
 	self->disconnectCb->Call(Context::GetCurrent()->Global(), 1, argv);
+}
+
+Handle<Value> RedisConnector::Disconnect(const Arguments& args) {
+	printf("%s\n", __PRETTY_FUNCTION__);
+	HandleScope scope;
+	RedisConnector* self = ObjectWrap::Unwrap<RedisConnector>(args.This());
+	redisAsyncDisconnect(self->c);
+	self->c = NULL;
+	return scope.Close(Undefined());
 }
 
 Handle<Value> RedisConnector::Connect(const Arguments& args) {
@@ -157,7 +169,6 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 		break;
 	case REDIS_REPLY_ARRAY:
 		for (size_t i=0; i<reply->elements; i++) {
-			printf("el %d/%d type %d is %s\n", i, reply->elements, reply->element[i]->type, reply->element[i]->str);
 			if(reply->element[i]->type == REDIS_REPLY_STRING)
 				arr->Set(Number::New(i), String::New(reply->element[i]->str));
 			else if(reply->element[i]->type == REDIS_REPLY_INTEGER)
