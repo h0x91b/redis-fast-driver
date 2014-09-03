@@ -18,6 +18,17 @@ redis.cmd(['ping'], function(e,d){
 	console.log(d);
 });
 
+redis.disconnect();
+
+redis.cmd(['hmset', 'somehset', 'a', '777', 'b', '888']);
+redis.cmd(['hgetall', 'somehset'], function(e,d){
+	console.log(d);
+});
+
+// redis.cmd(['subscribe', 'hello channel'], function(e,d){
+// 	console.log(d);
+// });
+
 function onConnect() {
 	console.log('cluster ready');
 	for(var i=0;i<1000;i++){
