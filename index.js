@@ -89,8 +89,8 @@ Redis.prototype = {
 								console.log('failed to connect to redis %s:%s error: %s', node.host, node.port, e);
 								return;
 							}
-							console.log('connected to redis %s:%s remain %s redises', node.host, node.port, masters.length - 1 - ++masters_ready);
-							if(masters_ready == masters.length - 1) {
+							console.log('connected to redis %s:%s remain %s redises', node.host, node.port, masters.length - ++masters_ready);
+							if(masters_ready == masters.length) {
 								self.isConnected = true;
 								self.hashslots = hashslots;
 								if(self.opts.onConnect) self.opts.onConnect();
