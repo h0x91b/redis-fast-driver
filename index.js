@@ -152,6 +152,7 @@ Redis.prototype = {
 			}
 		}
 		slot.redis.redisCmd(arr, cb);
+		return this;
 	},
 	// #################################################################################
 	// # Libraries
@@ -187,5 +188,6 @@ Redis.prototype = {
 		});
 		this.masters = [];
 		this.hashslots = [];
+		return this;
 	}
 };
