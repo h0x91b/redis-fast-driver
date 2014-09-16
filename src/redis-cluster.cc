@@ -55,7 +55,7 @@ Handle<Value> RedisConnector::New(const Arguments& args) {
 		double value = args[0]->IsUndefined() ? 0 : args[0]->NumberValue();
 		RedisConnector* obj = new RedisConnector(value);
 		obj->Wrap(args.This());
-		args.This()->Set(String::NewSymbol("hh"), obj->callbacks);
+		args.This()->Set(String::NewSymbol("callbacks"), obj->callbacks);
 		return args.This();
 	} else {
 		// Invoked as plain function `RedisConnector(...)`, turn into construct call.
@@ -99,6 +99,9 @@ Handle<Value> RedisConnector::Disconnect(const Arguments& args) {
 	printf("%s\n", __PRETTY_FUNCTION__);
 	HandleScope scope;
 	RedisConnector* self = ObjectWrap::Unwrap<RedisConnector>(args.This());
+	if(self->c->replies.head!=NULL) {
+		printf("there is more callbacks in queue...\n");
+	}
 	redisAsyncDisconnect(self->c);
 	self->c = NULL;
 	return scope.Close(Undefined());
@@ -146,7 +149,7 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 	Local<Function> cb = Local<Function>::Cast(self->callbacks->Get(Number::New(callback_id)));
 	self->callbacks->Delete(Number::New(callback_id)->ToString());
 	if (reply->type == REDIS_REPLY_ERROR) {
-		printf("[%d] redis error: %s\n", callback_id, reply->str);
+		//printf("[%d] redis error: %s\n", callback_id, reply->str);
 		Local<Value> argv[1] = {
 			Local<Value>::New(String::New(reply->str))
 		};

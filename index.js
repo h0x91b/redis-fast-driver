@@ -69,7 +69,7 @@ Redis.prototype = {
 		if(e) return this.opts.onError(e);
 		if(this.masters.length > 0) {
 			masters.forEach(function(node){
-				node.disconnect();
+				node.redis.disconnect();
 			});
 			masters = [];
 		}
@@ -112,10 +112,11 @@ Redis.prototype = {
 							self.isConnected = true;
 							self.hashslots = hashslots;
 							if(self.queue.length > 0) {
-								self.queue.forEach(function(cmd){
+								var queue = self.queue;
+								self.queue = [];
+								queue.forEach(function(cmd){
 									self.cmd(cmd.arr,cmd.cb);
 								});
-								self.queue = [];
 							}
 							if(self.opts.onConnect) self.opts.onConnect();
 							r.disconnect();
@@ -123,9 +124,12 @@ Redis.prototype = {
 					}
 					function onDisconnect(e){
 						if(e) return self.opts.onError(e);
-						//handling needed
-						console.log('onDisconnect happen');
-						if(self.opts.onDisconnect) self.opts.onDisconnect(); 
+						if(self.isConnected === false) return;
+						console.log('onDisconnect happen, reconnect now');
+						if(self.opts.onDisconnect) self.opts.onDisconnect();
+						self.disconnect();
+						self.isConnected = false;
+						self.getClusterTopology();
 					}
 					
 					process.nextTick(function(){
@@ -151,6 +155,7 @@ Redis.prototype = {
 			this.queue.push({arr:arr,cb:cb});
 			return;
 		}
+		var self = this;
 		var slot;
 		//there is no key, so we can not know where to go
 		if(arr.length < 2) {
@@ -164,7 +169,21 @@ Redis.prototype = {
 				return;
 			}
 		}
-		slot.redis.redisCmd(arr, cb);
+		slot.redis.redisCmd(arr, function(e,data){
+			if(e && e.indexOf('MOVED') === 0) {
+				self.queue.push({arr:arr,cb:cb});
+				if(!self.isConnected) return;
+				
+				console.log('topology of cluster changed, reconnect now');
+				self.disconnect();
+				setTimeout(function(){
+					self.getClusterTopology();
+				}, 500);
+				if(self.opts.onDisconnect) self.opts.onDisconnect();
+				return;
+			}
+			cb(e, data);
+		});
 		return this;
 	},
 	// #################################################################################
@@ -196,9 +215,16 @@ Redis.prototype = {
 	},
 	disconnect: function() {
 		this.isConnected = false;
-		this.masters.forEach(function(redis){
-			redis.disconnect();
-		});
+		function waitForAllCallbacks(node){
+			if(Object.keys(node.redis.callbacks).length > 0) {
+				setTimeout(function(){
+					waitForAllCallbacks(node);
+				},10);
+				return;
+			}
+			node.redis.disconnect();
+		}
+		this.masters.forEach(waitForAllCallbacks);
 		this.masters = [];
 		this.hashslots = [];
 		return this;
