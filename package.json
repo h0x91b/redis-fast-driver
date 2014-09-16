@@ -1,7 +1,7 @@
 {
-  "name": "redis-cluster",
-  "version": "0.0.0",
-  "description": "",
+  "name": "redis-adapter",
+  "version": "0.0.1",
+  "description": "Fast driver for redis designed to work with redis cluster",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -11,8 +11,8 @@
     "type": "git",
     "url": "https://github.com/h0x91b/redis-cluster.git"
   },
-  "author": "h0x91b",
-  "license": "ISC",
+  "author": "Arseniy Pavlenko (h0x91b)",
+  "license": "MIT",
   "gypfile": true,
   "bugs": {
     "url": "https://github.com/h0x91b/redis-cluster/issues"
