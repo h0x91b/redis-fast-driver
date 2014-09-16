@@ -10,18 +10,11 @@ function Redis(opts){
 	self.isConnected = false;
 	self.masters = [];
 	self.hashslots = [];
+	opts.hashslots = opts.hashslots || 16384;
 	self.opts = opts;
 	self.opts.onError = self.opts.onError || function onRedisError(e){ throw e; };
 	self.queue = [];
-	var r = new redis.RedisConnector();
-	r.connect(opts.host, opts.port, function onConnect(e){
-		if(e) return self.opts.onError(e);
-		r.redisCmd(['cluster', 'nodes'], function(e,d){
-			self._getTopology.call(self,e,d,r);
-		});
-	}, function onDisconnect(e){
-		if(e) return self.opts.onError(e);
-	});
+	self.getClusterTopology();
 };
 
 var XMODEMCRC16Lookup = [
@@ -60,15 +53,34 @@ var XMODEMCRC16Lookup = [
 ];
 
 Redis.prototype = {
-	_getTopology: function(e, d, r){
+	getClusterTopology: function() {
+		var self = this;
+		var r = new redis.RedisConnector();
+		r.connect(self.opts.host, self.opts.port, function onConnect(e){
+			if(e) return self.opts.onError(e);
+			r.redisCmd(['cluster', 'nodes'], function(e,d){
+				self.parseClusterTopology.call(self,e,d,r);
+			});
+		}, function onDisconnect(e){
+			if(e) return self.opts.onError(e);
+		});
+	},
+	parseClusterTopology: function(e, d, r){
 		if(e) return this.opts.onError(e);
+		if(this.masters.length > 0) {
+			masters.forEach(function(node){
+				node.disconnect();
+			});
+			masters = [];
+		}
+		
 		var self = this;
 		var a = d.split('\n');
 		var topology = [];
 		var masters = [];
 		var masters_ready = 0;
 		var slaves = {};
-		var hashslots = Array(16384);
+		var hashslots = Array(self.opts.hashslots);
 		a.forEach(function(elm){
 			if(elm.length < 1) return;
 			var node = {};
@@ -89,33 +101,35 @@ Redis.prototype = {
 							hashslots[i] = node;
 					});
 					node.redis = new redis.RedisConnector();
-					process.nextTick(function(){
-						node.redis.connect(node.host, node.port, 
-							function(e){
-								if(e) {
-									console.log('failed to connect to redis %s:%s error: %s', node.host, node.port, e);
-									return;
-								}
-								console.log('connected to redis %s:%s remain %s redises', node.host, node.port, masters.length - ++masters_ready);
-								if(masters_ready == masters.length) {
-									self.isConnected = true;
-									self.hashslots = hashslots;
-									if(self.queue.length > 0) {
-										self.queue.forEach(function(cmd){
-											self.cmd(cmd.arr,cmd.cb);
-										});
-										self.queue = [];
-									}
-									if(self.opts.onConnect) self.opts.onConnect();
-									r.disconnect();
-								}
-							},
-							function onDisconnect(e){
-								if(e) return self.opts.onError(e);
-								//handling needed
-								if(opts.onDisconnect) opts.onDisconnect(); 
+					function onConnect(e){
+						if(e) {
+							console.log('failed to connect to redis %s:%s error: %s', node.host, node.port, e);
+							r.disconnect();
+							return;
+						}
+						console.log('connected to redis %s:%s remain %s redises', node.host, node.port, masters.length - ++masters_ready);
+						if(masters_ready == masters.length) {
+							self.isConnected = true;
+							self.hashslots = hashslots;
+							if(self.queue.length > 0) {
+								self.queue.forEach(function(cmd){
+									self.cmd(cmd.arr,cmd.cb);
+								});
+								self.queue = [];
 							}
-						);
+							if(self.opts.onConnect) self.opts.onConnect();
+							r.disconnect();
+						}
+					}
+					function onDisconnect(e){
+						if(e) return self.opts.onError(e);
+						//handling needed
+						console.log('onDisconnect happen');
+						if(self.opts.onDisconnect) self.opts.onDisconnect(); 
+					}
+					
+					process.nextTick(function(){
+						node.redis.connect(node.host, node.port, onConnect, onDisconnect);
 					});
 				}
 				masters.push(node);
@@ -123,11 +137,9 @@ Redis.prototype = {
 			if(node.flags.indexOf('slave') !== -1) {
 				slaves[node.id] = node;
 			}
-			//console.log('node info: \n%o', node);
 			topology.push(node);
 		});
 		self.masters = masters;
-		//console.log('masters', masters);
 	},
 	cmd: function(arr, cb){
 		if(!Array.isArray(arr)) 
@@ -140,6 +152,7 @@ Redis.prototype = {
 			return;
 		}
 		var slot;
+		//there is no key, so we can not know where to go
 		if(arr.length < 2) {
 			//go to random master
 			slot = this.masters[Math.floor(Math.random()*this.masters.length)];
@@ -179,7 +192,7 @@ Redis.prototype = {
 		var crc = 0;
 		for(var i=0;i<bytes.length;i++)
 			crc = ((crc<<8) & 0xffff) ^ XMODEMCRC16Lookup[((crc>>8)^bytes.charCodeAt(i)) & 0xff];
-		return crc % 16384;
+		return crc % this.opts.hashslots;
 	},
 	disconnect: function() {
 		this.isConnected = false;
