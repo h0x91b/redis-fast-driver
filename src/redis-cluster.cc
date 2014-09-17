@@ -121,9 +121,14 @@ Handle<Value> RedisConnector::Connect(const Arguments& args) {
 	unsigned short port = (unsigned short)args[1]->NumberValue();
 	self->connectCb = Persistent<Function>::New(Local<Function>::Cast(args[2]));
 	self->disconnectCb = Persistent<Function>::New(Local<Function>::Cast(args[3]));
-	printf("connect to %s:%d\n", host, port);
 	
-	self->c = redisAsyncConnect(host, port);
+	if(strstr(host,"/")==host) {
+		printf("connect to unix:%s\n", host);
+		self->c = redisAsyncConnectUnix(host);
+	} else {
+		printf("connect to %s:%d\n", host, port);
+		self->c = redisAsyncConnect(host, port);
+	}
 	if (self->c->err) {
 		printf("Error: %s\n", self->c->errstr);
 		// handle error

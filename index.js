@@ -3,10 +3,12 @@ var redis = require('./build/Release/redis-cluster');
 module.exports = Redis;
 
 function Redis(opts){
-	if(!opts.host || !opts.port) {
-		throw 'Missing option host or port';
+	if(!opts.host) {
+		throw 'Missing option host';
 	}
+	opts.port = opts.port || 6379;
 	var self = this;
+	self.isCluster = opts.cluster || false;
 	self.isConnected = false;
 	self.masters = [];
 	self.hashslots = [];
@@ -58,6 +60,11 @@ Redis.prototype = {
 		var r = new redis.RedisConnector();
 		r.connect(self.opts.host, self.opts.port, function onConnect(e){
 			if(e) return self.opts.onError(e);
+			if(!self.isCluster) {
+				self.redis = r;
+				self.isConnected = true;
+				return;
+			}
 			r.redisCmd(['cluster', 'nodes'], function(e,d){
 				self.parseClusterTopology.call(self,e,d,r);
 			});
@@ -157,19 +164,24 @@ Redis.prototype = {
 		}
 		var self = this;
 		var slot;
-		//there is no key, so we can not know where to go
-		if(arr.length < 2) {
-			//go to random master
-			slot = this.masters[Math.floor(Math.random()*this.masters.length)];
-		} else {
-			var hashslot = this.keyToSlot(arr[1]);
-			slot = this.hashslots[hashslot];
-			if(!slot) {
-				cb('Redis hashslot #'+hashslot+' is unassgined');
-				return;
+		if(self.isCluster){
+			//there is no key, so we can not know where to go
+			if(arr.length < 2) {
+				//go to random master
+				slot = this.masters[Math.floor(Math.random()*this.masters.length)].redis;
+			} else {
+				var hashslot = this.keyToSlot(arr[1]);
+				slot = this.hashslots[hashslot].redis;
+				if(!slot) {
+					cb('Redis hashslot #'+hashslot+' is unassgined');
+					return;
+				}
 			}
+		} else {
+			slot = self.redis;
 		}
-		slot.redis.redisCmd(arr, function(e,data){
+		
+		slot.redisCmd(arr, function(e,data){
 			if(e && e.indexOf('MOVED') === 0) {
 				self.queue.push({arr:arr,cb:cb});
 				if(!self.isConnected) return;
@@ -224,7 +236,10 @@ Redis.prototype = {
 			}
 			node.redis.disconnect();
 		}
-		this.masters.forEach(waitForAllCallbacks);
+		if(this.isCluster)
+			this.masters.forEach(waitForAllCallbacks);
+		else
+			waitForAllCallbacks(this.redis);
 		this.masters = [];
 		this.hashslots = [];
 		return this;

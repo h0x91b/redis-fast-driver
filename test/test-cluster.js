@@ -1,7 +1,8 @@
 var Redis = require('../');
 var redis = new Redis({
 	host:'127.0.0.1', 
-	port: 6379, 
+	port: 7001, 
+	cluster: true,
 	onConnect: onConnect,
 	onError: function(e) {
 		console.log('redis error: ', e);
@@ -26,12 +27,8 @@ redis.cmd(['hgetall', 'somehset'], function(e,d){
 	console.log(d);
 });
 
-// redis.cmd(['subscribe', 'hello channel'], function(e,d){
-// 	console.log(d);
-// });
-
 function onConnect() {
-	console.log('adapter ready');
+	console.log('cluster ready');
 	for(var i=0;i<1000;i++){
 		redis.cmd(['set', 'hello'+i, Math.random()]);
 	}

@@ -1,7 +1,6 @@
 var Redis = require('../');
 var redis = new Redis({
-	host:'127.0.0.1', 
-	port: 6379, 
+	host:'/tmp/redis.sock', 
 	onConnect: onConnect,
 	onError: function(e) {
 		console.log('redis error: ', e);
