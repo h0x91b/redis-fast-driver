@@ -5,9 +5,12 @@
                 "deps/hiredis.gyp:hiredis"
             ],
             "sources": [
-                "src/redis-cluster.cc"
+                "src/redis-fast-driver.cc"
             ],
-            "target_name": "redis-cluster"
+            "target_name": "redis-fast-driver",
+            "defines": [
+                "ENABLELOG=1"
+            ]
         }
     ]
 }

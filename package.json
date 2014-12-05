@@ -1,7 +1,7 @@
 {
-  "name": "redis-adapter",
+  "name": "redis-fast-driver",
   "version": "0.0.1",
-  "description": "Fast driver for redis designed to work with redis cluster",
+  "description": "Fast truly async driver for redis",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -9,13 +9,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/h0x91b/redis-cluster.git"
+    "url": "https://github.com/h0x91b/redis-fast-driver.git"
   },
   "author": "Arseniy Pavlenko (h0x91b)",
   "license": "MIT",
   "gypfile": true,
   "bugs": {
-    "url": "https://github.com/h0x91b/redis-cluster/issues"
+    "url": "https://github.com/h0x91b/redis-fast-driver/issues"
   },
-  "homepage": "https://github.com/h0x91b/redis-cluster"
+  "homepage": "https://github.com/h0x91b/redis-fast-driver"
 }

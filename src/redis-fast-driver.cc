@@ -1,8 +1,10 @@
-#define BUILDING_NODE_EXTENSION
+#ifndef BUILDING_NODE_EXTENSION
+	#define BUILDING_NODE_EXTENSION
+#endif
 #include <node.h>
 #include <node_version.h>
 #include <v8.h>
-#include "redis-cluster.h"
+#include "redis-fast-driver.h"
 
 using namespace v8;
 
@@ -10,27 +12,18 @@ void init(Handle<Object> exports) {
 	RedisConnector::Init(exports);
 }
 
-NODE_MODULE(redis_cluster, init)
+NODE_MODULE(redis_fast_driver, init)
 
 Persistent<Function> RedisConnector::constructor;
 
 RedisConnector::RedisConnector(double value) : value_(value) {
-	printf("%s\n", __PRETTY_FUNCTION__);
+	LOG("%s\n", __PRETTY_FUNCTION__);
 	callbacks = Persistent<Object>::New(Object::New());
 	callback_id = 1;
 }
 
 RedisConnector::~RedisConnector() {
-	printf("%s\n", __PRETTY_FUNCTION__);
-}
-
-Handle<Value> RedisConnector::PlusOne(const Arguments& args) {
-	HandleScope scope;
-
-	RedisConnector* obj = ObjectWrap::Unwrap<RedisConnector>(args.This());
-	obj->value_ += 1;
-
-	return scope.Close(Number::New(obj->value_));
+	LOG("%s\n", __PRETTY_FUNCTION__);
 }
 
 void RedisConnector::Init(Handle<Object> exports) {
@@ -39,7 +32,6 @@ void RedisConnector::Init(Handle<Object> exports) {
 	tpl->SetClassName(String::NewSymbol("RedisConnector"));
 	tpl->InstanceTemplate()->SetInternalFieldCount(1);
 	// Prototype
-	tpl->PrototypeTemplate()->Set(String::NewSymbol("plusOne"), FunctionTemplate::New(PlusOne)->GetFunction());
 	tpl->PrototypeTemplate()->Set(String::NewSymbol("connect"), FunctionTemplate::New(Connect)->GetFunction());
 	tpl->PrototypeTemplate()->Set(String::NewSymbol("disconnect"), FunctionTemplate::New(Disconnect)->GetFunction());
 	tpl->PrototypeTemplate()->Set(String::NewSymbol("redisCmd"), FunctionTemplate::New(RedisCmd)->GetFunction());
@@ -66,8 +58,10 @@ Handle<Value> RedisConnector::New(const Arguments& args) {
 }
 
 void RedisConnector::connectCallback(const redisAsyncContext *c, int status) {
+	LOG("%s\n", __PRETTY_FUNCTION__);
 	RedisConnector *self = (RedisConnector*)c->data;
 	if (status != REDIS_OK) {
+		LOG("%s !REDIS_OK\n", __PRETTY_FUNCTION__);
 		Local<Value> argv[1] = {
 			Local<Value>::New(String::New(c->errstr))
 		};
@@ -81,6 +75,7 @@ void RedisConnector::connectCallback(const redisAsyncContext *c, int status) {
 }
 
 void RedisConnector::disconnectCallback(const redisAsyncContext *c, int status) {
+	LOG("%s\n", __PRETTY_FUNCTION__);
 	RedisConnector *self = (RedisConnector*)c->data;
 	if (status != REDIS_OK) {
 		Local<Value> argv[1] = {
@@ -96,11 +91,11 @@ void RedisConnector::disconnectCallback(const redisAsyncContext *c, int status) 
 }
 
 Handle<Value> RedisConnector::Disconnect(const Arguments& args) {
-	printf("%s\n", __PRETTY_FUNCTION__);
+	LOG("%s\n", __PRETTY_FUNCTION__);
 	HandleScope scope;
 	RedisConnector* self = ObjectWrap::Unwrap<RedisConnector>(args.This());
 	if(self->c->replies.head!=NULL) {
-		printf("there is more callbacks in queue...\n");
+		LOG("there is more callbacks in queue...\n");
 	}
 	redisAsyncDisconnect(self->c);
 	self->c = NULL;
@@ -108,7 +103,7 @@ Handle<Value> RedisConnector::Disconnect(const Arguments& args) {
 }
 
 Handle<Value> RedisConnector::Connect(const Arguments& args) {
-	printf("%s\n", __PRETTY_FUNCTION__);
+	LOG("%s\n", __PRETTY_FUNCTION__);
 	HandleScope scope;
 	if(args.Length() != 4) {
 		ThrowException(Exception::TypeError(String::New("Wrong arguments count")));
@@ -123,14 +118,14 @@ Handle<Value> RedisConnector::Connect(const Arguments& args) {
 	self->disconnectCb = Persistent<Function>::New(Local<Function>::Cast(args[3]));
 	
 	if(strstr(host,"/")==host) {
-		printf("connect to unix:%s\n", host);
+		LOG("connect to unix:%s\n", host);
 		self->c = redisAsyncConnectUnix(host);
 	} else {
-		printf("connect to %s:%d\n", host, port);
+		LOG("connect to %s:%d\n", host, port);
 		self->c = redisAsyncConnect(host, port);
 	}
 	if (self->c->err) {
-		printf("Error: %s\n", self->c->errstr);
+		LOG("Error: %s\n", self->c->errstr);
 		// handle error
 		ThrowException(Exception::TypeError(String::New(self->c->errstr)));
 		return scope.Close(Undefined());
@@ -146,7 +141,7 @@ Handle<Value> RedisConnector::Connect(const Arguments& args) {
 
 void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) {
 	HandleScope scope;
-	//printf("%s\n", __PRETTY_FUNCTION__);
+	//LOG("%s\n", __PRETTY_FUNCTION__);
 	redisReply *reply = (redisReply*)r;
 	uint32_t callback_id = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(privdata));
 	if (reply == NULL) return;
@@ -154,7 +149,7 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 	Local<Function> cb = Local<Function>::Cast(self->callbacks->Get(Number::New(callback_id)));
 	self->callbacks->Delete(Number::New(callback_id)->ToString());
 	if (reply->type == REDIS_REPLY_ERROR) {
-		//printf("[%d] redis error: %s\n", callback_id, reply->str);
+		//LOG("[%d] redis error: %s\n", callback_id, reply->str);
 		Local<Value> argv[1] = {
 			Local<Value>::New(String::New(reply->str))
 		};
@@ -189,7 +184,7 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 		resp = Local<Value>::New(arr);
 		break;
 	default:
-		printf("[%d] protocol error type %d\n", callback_id, reply->type);
+		LOG("[%d] protocol error type %d\n", callback_id, reply->type);
 		Local<Value> argv[1] = {
 			Local<Value>::New(String::New("Protocol error, unknown type"))
 		};
@@ -205,7 +200,7 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 }
 
 Handle<Value> RedisConnector::RedisCmd(const Arguments& args) {
-	//printf("%s\n", __PRETTY_FUNCTION__);
+	//LOG("%s\n", __PRETTY_FUNCTION__);
 	HandleScope scope;
 	if(args.Length() != 2) {
 		ThrowException(Exception::TypeError(String::New("Wrong arguments count")));
@@ -226,7 +221,7 @@ Handle<Value> RedisConnector::RedisCmd(const Arguments& args) {
 		argv[i] = (char*)malloc(str.length());
 		memcpy(argv[i], *str, str.length());
 		argvlen[i] = str.length();
-		//printf("add \"%s\" len: %d\n", argv[i], argvlen[i]);
+		//LOG("add \"%s\" len: %d\n", argv[i], argvlen[i]);
 	}
 	redisAsyncCommandArgv(self->c, getCallback, (void*)callback_id, array->Length(), (const char**)argv, (const size_t*)argvlen);
 	for(uint32_t i=0;i<array->Length();i++) {

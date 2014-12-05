@@ -1,6 +1,12 @@
 #ifndef REDIS_CLUSTER_H
 #define REDIS_CLUSTER_H
 
+#ifdef ENABLELOG
+#define LOG(...) fprintf( stderr, __VA_ARGS__ );
+#else
+#define LOG(...) do{ } while ( false )
+#endif
+
 #include <node.h>
 #include "../deps/hiredis/async.h"
 #include "../deps/hiredis/hiredis.h"
@@ -20,8 +26,6 @@ private:
 	~RedisConnector();
 
 	static v8::Handle<v8::Value> New(const v8::Arguments& args);
-	static v8::Handle<v8::Value> PlusOne(const v8::Arguments& args);
-
 	static v8::Handle<v8::Value> Connect(const v8::Arguments& args);
 	static v8::Handle<v8::Value> Disconnect(const v8::Arguments& args);
 	static v8::Handle<v8::Value> RedisCmd(const v8::Arguments& args);
