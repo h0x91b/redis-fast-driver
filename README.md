@@ -1,7 +1,7 @@
 Alpha
 ===
 
-Look at `test/test.js` for usage.
+Look at `test/example.js` for usage.
 
 Speed
 ===
