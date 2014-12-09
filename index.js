@@ -8,6 +8,7 @@ function Redis(opts) {
 	opts.port = opts.port || 6379;
 	this.name = opts.name || 'redis-driver['+opts.host+':'+opts.port+']';
 	this.ready = false;
+	this.destroyed = false;
 	this.readyFirstTime = false;
 	this.tryToReconnect = opts.tryToReconnect || true;
 	this.queue = [];
@@ -30,7 +31,7 @@ function Redis(opts) {
 		}
 		self.ready = true;
 		if(self.queue.length > 0)
-			self.rawCall(['PING'], function(e,d){});
+			self.rawCall(['PING']);
 		if(!self.readyFirstTime) {
 			self.readyFirstTime = true;
 			self.emit('ready');
@@ -39,6 +40,7 @@ function Redis(opts) {
 	}
 	
 	function onDisconnect(e){
+		if(self.destroyed) return;
 		if(e){
 			self.emit('error', e);
 		}
@@ -69,12 +71,13 @@ Redis.prototype.rawCall = function(args, cb) {
 	if(!args || !Array.isArray(args)) {
 		throw 'first argument must be an Array';
 	}
-  if(typeof cb === 'undefined') {
-    cb = function(e) {
-      if(e)
-        self.emit('error', e);
-    }
-  }
+
+	if(typeof cb === 'undefined') {
+		cb = function(e) {
+		if(e)
+			self.emit('error', e);
+		}
+	}
 	if(!this.ready) {
 		this.queue.push({
 			args: args,
@@ -91,6 +94,13 @@ Redis.prototype.rawCall = function(args, cb) {
 	}
 	this.redis.redisCmd(args, cb);
 	return this;
+};
+
+Redis.prototype.end = function() {
+	this.ready = false;
+	this.redis.disconnect();
+	this.redis = null;
+	this.destroyed = true;
 };
 
 module.exports = Redis;
