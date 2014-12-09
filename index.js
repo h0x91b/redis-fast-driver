@@ -69,6 +69,12 @@ Redis.prototype.rawCall = function(args, cb) {
 	if(!args || !Array.isArray(args)) {
 		throw 'first argument must be an Array';
 	}
+  if(typeof cb === 'undefined') {
+    cb = function(e) {
+      if(e)
+        self.emit('error', e);
+    }
+  }
 	if(!this.ready) {
 		this.queue.push({
 			args: args,

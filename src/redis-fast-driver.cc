@@ -176,6 +176,8 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 				arr->Set(Number::New(i), String::New(reply->element[i]->str));
 			else if(reply->element[i]->type == REDIS_REPLY_INTEGER)
 				arr->Set(Number::New(i), Number::New(reply->element[i]->integer));
+			else if(reply->element[i]->type == REDIS_REPLY_NIL)
+				arr->Set(Number::New(i), Local<Value>::New(Null()));
 			else {
 				ThrowException(Exception::TypeError(String::New("Protocol error, unknwown type in Array")));
 				return;
