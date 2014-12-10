@@ -1,6 +1,6 @@
 {
   "name": "redis-fast-driver",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Fast truly async driver for redis",
   "main": "index.js",
   "scripts": {

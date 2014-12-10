@@ -225,7 +225,7 @@ Handle<Value> RedisConnector::RedisCmd(const Arguments& args) {
 		argvlen[i] = str.length();
 		//LOG("add \"%s\" len: %d\n", argv[i], argvlen[i]);
 	}
-	redisAsyncCommandArgv(self->c, getCallback, (void*)callback_id, array->Length(), (const char**)argv, (const size_t*)argvlen);
+	redisAsyncCommandArgv(self->c, getCallback, (void*)(intptr_t)callback_id, array->Length(), (const char**)argv, (const size_t*)argvlen);
 	for(uint32_t i=0;i<array->Length();i++) {
 		free(argv[i]);
 	}
