@@ -8,6 +8,7 @@
 #endif
 
 #include <node.h>
+#include <stdlib.h>
 #include "../deps/hiredis/async.h"
 #include "../deps/hiredis/hiredis.h"
 #include "../deps/hiredis/adapters/libuv.h"
