@@ -17,51 +17,55 @@ function Redis(opts) {
 	this.reconnectTimeoutId = null;
 	this.reconnects = 0;
 	
-	try {
-		self.redis.connect(opts.host, opts.port, onConnect, onDisconnect);
-	} catch(e) {
-		reconnect();
-	}
 	
-	function onConnect(e){
-		if(e){
-			self.emit('error', e);
+	function initialConnect() {
+		try {
+			self.redis.connect(opts.host, opts.port, onConnect, onDisconnect);
+		} catch(e) {
 			reconnect();
-			return;
 		}
-		self.ready = true;
-		if(self.queue.length > 0)
-			self.rawCall(['PING']);
-		if(!self.readyFirstTime) {
-			self.readyFirstTime = true;
-			self.emit('ready');
-		}
-		self.emit('connected');
-	}
 	
-	function onDisconnect(e){
-		if(self.destroyed) return;
-		if(e){
-			self.emit('error', e);
-		}
-		self.ready = false;
-		self.emit('disconnected');
-		reconnect();
-	}
-	
-	function reconnect() {
-		if(!self.tryToReconnect) return;
-		self.reconnects++;
-		if(self.reconnectTimeoutId)
-			clearTimeout(self.reconnectTimeoutId);
-		self.reconnectTimeoutId = setTimeout(function(){
-			try {
-				self.redis.connect(opts.host, opts.port, onConnect, onDisconnect);
-			} catch(e) {
+		function onConnect(e){
+			if(e){
+				self.emit('error', e);
 				reconnect();
+				return;
 			}
-		}, self.reconnectTimeout);
+			self.ready = true;
+			if(self.queue.length > 0)
+				self.rawCall(['PING']);
+			if(!self.readyFirstTime) {
+				self.readyFirstTime = true;
+				self.emit('ready');
+			}
+			self.emit('connected');
+		}
+	
+		function onDisconnect(e){
+			if(self.destroyed) return;
+			if(e){
+				self.emit('error', e);
+			}
+			self.ready = false;
+			self.emit('disconnected');
+			reconnect();
+		}
+	
+		function reconnect() {
+			if(!self.tryToReconnect) return;
+			self.reconnects++;
+			if(self.reconnectTimeoutId)
+				clearTimeout(self.reconnectTimeoutId);
+			self.reconnectTimeoutId = setTimeout(function(){
+				try {
+					self.redis.connect(opts.host, opts.port, onConnect, onDisconnect);
+				} catch(e) {
+					reconnect();
+				}
+			}, self.reconnectTimeout);
+		}
 	}
+	process.nextTick(initialConnect);
 }
 
 util.inherits(Redis, EventEmitter);

@@ -9,7 +9,7 @@
             ],
             "target_name": "redis-fast-driver",
             "defines": [
-                "ENABLELOG=1"
+                "ENABLELOG=0"
             ]
         }
     ]
