@@ -1,7 +1,7 @@
 #ifndef REDIS_CLUSTER_H
 #define REDIS_CLUSTER_H
 
-#ifdef ENABLELOG
+#if ENABLELOG
 #define LOG(...) fprintf( stderr, __VA_ARGS__ );
 #else
 #define LOG(...) do{ } while ( false )
