@@ -6,6 +6,7 @@ function Redis(opts) {
 	var self = this;
 	opts.host = opts.host || '127.0.0.1';
 	opts.port = opts.port || 6379;
+	opts.maxretries = opts.maxretries || 10;
 	this.name = opts.name || 'redis-driver['+opts.host+':'+opts.port+']';
 	this.ready = false;
 	this.destroyed = false;
@@ -38,6 +39,7 @@ function Redis(opts) {
 				self.readyFirstTime = true;
 				self.emit('ready');
 			}
+			self.reconnects = 0;
 			self.emit('connected');
 		}
 	
@@ -52,7 +54,7 @@ function Redis(opts) {
 		}
 	
 		function reconnect() {
-			if(!self.tryToReconnect) return;
+			if(!self.tryToReconnect || self.reconnects > opts.maxretries) return;
 			self.reconnects++;
 			if(self.reconnectTimeoutId)
 				clearTimeout(self.reconnectTimeoutId);
