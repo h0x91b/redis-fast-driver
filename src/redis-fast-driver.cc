@@ -18,7 +18,8 @@ Persistent<Function> RedisConnector::constructor;
 
 RedisConnector::RedisConnector(double value) : value_(value) {
 	LOG("%s\n", __PRETTY_FUNCTION__);
-	callbacks = Persistent<Object>::New(Object::New());
+	Local<Object> obj = NanNew<Object>();
+	NanAssignPersistent(callbacks, obj);
 	callback_id = 1;
 }
 
@@ -28,32 +29,34 @@ RedisConnector::~RedisConnector() {
 
 void RedisConnector::Init(Handle<Object> exports) {
 	// Prepare constructor template
-	Local<FunctionTemplate> tpl = FunctionTemplate::New(New);
-	tpl->SetClassName(String::NewSymbol("RedisConnector"));
+	//NanNew<FunctionTemplate>(New);
+	Local<FunctionTemplate> tpl = NanNew<FunctionTemplate>(New);
+	tpl->SetClassName(NanNew<String>("RedisConnector"));
 	tpl->InstanceTemplate()->SetInternalFieldCount(1);
 	// Prototype
-	tpl->PrototypeTemplate()->Set(String::NewSymbol("connect"), FunctionTemplate::New(Connect)->GetFunction());
-	tpl->PrototypeTemplate()->Set(String::NewSymbol("disconnect"), FunctionTemplate::New(Disconnect)->GetFunction());
-	tpl->PrototypeTemplate()->Set(String::NewSymbol("redisCmd"), FunctionTemplate::New(RedisCmd)->GetFunction());
-	constructor = Persistent<Function>::New(tpl->GetFunction());
-	exports->Set(String::NewSymbol("RedisConnector"), constructor);
+	NanSetPrototypeTemplate(tpl, "connect", NanNew<FunctionTemplate>(Connect));
+	NanSetPrototypeTemplate(tpl, "disconnect", NanNew<FunctionTemplate>(Disconnect));
+	NanSetPrototypeTemplate(tpl, "redisCmd", NanNew<FunctionTemplate>(RedisCmd));
+	NanAssignPersistent<Function>(constructor, tpl->GetFunction());
+	exports->Set(NanNew("RedisConnector"), tpl->GetFunction());
 }
 
-Handle<Value> RedisConnector::New(const Arguments& args) {
-	HandleScope scope;
+NAN_METHOD(RedisConnector::New) {
+	NanScope();
 
 	if (args.IsConstructCall()) {
 		// Invoked as constructor: `new RedisConnector(...)`
 		double value = args[0]->IsUndefined() ? 0 : args[0]->NumberValue();
 		RedisConnector* obj = new RedisConnector(value);
 		obj->Wrap(args.This());
-		args.This()->Set(String::NewSymbol("callbacks"), obj->callbacks);
-		return args.This();
+		args.This()->Set(NanNew<String>("callbacks"), NanNew(obj->callbacks));
+		NanReturnThis();
 	} else {
 		// Invoked as plain function `RedisConnector(...)`, turn into construct call.
 		const int argc = 1;
 		Local<Value> argv[argc] = { args[0] };
-		return scope.Close(constructor->NewInstance(argc, argv));
+		NanReturnValue(NanNew(constructor)->NewInstance(argc, argv));
+		// return scope.Close(constructor->NewInstance(argc, argv));
 	}
 }
 
@@ -63,15 +66,15 @@ void RedisConnector::connectCallback(const redisAsyncContext *c, int status) {
 	if (status != REDIS_OK) {
 		LOG("%s !REDIS_OK\n", __PRETTY_FUNCTION__);
 		Local<Value> argv[1] = {
-			Local<Value>::New(String::New(c->errstr))
+			NanNew<String>(c->errstr)
 		};
-		self->connectCb->Call(Context::GetCurrent()->Global(), 1, argv);
+		NanNew(self->connectCb)->Call(NanGetCurrentContext()->Global(), 1, argv);
 		return;
 	}
 	Local<Value> argv[1] = {
-		Local<Value>::New(Null())
+		NanNull()
 	};
-	self->connectCb->Call(Context::GetCurrent()->Global(), 1, argv);
+	NanNew(self->connectCb)->Call(NanGetCurrentContext()->Global(), 1, argv);
 }
 
 void RedisConnector::disconnectCallback(const redisAsyncContext *c, int status) {
@@ -79,43 +82,45 @@ void RedisConnector::disconnectCallback(const redisAsyncContext *c, int status) 
 	RedisConnector *self = (RedisConnector*)c->data;
 	if (status != REDIS_OK) {
 		Local<Value> argv[1] = {
-			Local<Value>::New(String::New(c->errstr))
+			NanNew<String>(c->errstr)
 		};
-		self->disconnectCb->Call(Context::GetCurrent()->Global(), 1, argv);
+		NanNew(self->disconnectCb)->Call(NanGetCurrentContext()->Global(), 1, argv);
 		return;
 	}
 	Local<Value> argv[1] = {
-		Local<Value>::New(Null())
+		NanNull()
 	};
-	self->disconnectCb->Call(Context::GetCurrent()->Global(), 1, argv);
+	NanNew(self->disconnectCb)->Call(NanGetCurrentContext()->Global(), 1, argv);
 }
 
-Handle<Value> RedisConnector::Disconnect(const Arguments& args) {
+NAN_METHOD(RedisConnector::Disconnect) {
 	LOG("%s\n", __PRETTY_FUNCTION__);
-	HandleScope scope;
+	NanScope();
 	RedisConnector* self = ObjectWrap::Unwrap<RedisConnector>(args.This());
 	if(self->c->replies.head!=NULL) {
 		LOG("there is more callbacks in queue...\n");
 	}
 	redisAsyncDisconnect(self->c);
 	self->c = NULL;
-	return scope.Close(Undefined());
+	NanReturnUndefined();
 }
 
-Handle<Value> RedisConnector::Connect(const Arguments& args) {
+NAN_METHOD(RedisConnector::Connect) {
 	LOG("%s\n", __PRETTY_FUNCTION__);
-	HandleScope scope;
+	NanScope();
 	if(args.Length() != 4) {
-		ThrowException(Exception::TypeError(String::New("Wrong arguments count")));
-		return scope.Close(Undefined());
+		NanThrowTypeError("Wrong arguments count");
+		NanReturnUndefined();
 	}
 	RedisConnector* self = ObjectWrap::Unwrap<RedisConnector>(args.This());
 	
 	String::Utf8Value v8str(args[0]);
 	const char *host = *v8str;
 	unsigned short port = (unsigned short)args[1]->NumberValue();
-	self->connectCb = Persistent<Function>::New(Local<Function>::Cast(args[2]));
-	self->disconnectCb = Persistent<Function>::New(Local<Function>::Cast(args[3]));
+	Local<Function> connectCb = Local<Function>::Cast(args[2]);
+	NanAssignPersistent(self->connectCb, connectCb);
+	Local<Function> disconnectCb = Local<Function>::Cast(args[3]);
+	NanAssignPersistent(self->disconnectCb, disconnectCb);
 	
 	if(strstr(host,"/")==host) {
 		LOG("connect to unix:%s\n", host);
@@ -127,8 +132,8 @@ Handle<Value> RedisConnector::Connect(const Arguments& args) {
 	if (self->c->err) {
 		LOG("Error: %s\n", self->c->errstr);
 		// handle error
-		ThrowException(Exception::TypeError(String::New(self->c->errstr)));
-		return scope.Close(Undefined());
+		NanThrowTypeError(self->c->errstr);
+		NanReturnUndefined();
 	}
 	uv_loop_t* loop = uv_default_loop();
 	self->c->data = (void*)self;
@@ -136,77 +141,78 @@ Handle<Value> RedisConnector::Connect(const Arguments& args) {
 	redisAsyncSetConnectCallback(self->c,connectCallback);
 	redisAsyncSetDisconnectCallback(self->c,disconnectCallback);
 	
-	return scope.Close(Undefined());
+	NanReturnUndefined();
 }
 
 void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) {
-	HandleScope scope;
+	NanScope();
 	//LOG("%s\n", __PRETTY_FUNCTION__);
 	redisReply *reply = (redisReply*)r;
 	uint32_t callback_id = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(privdata));
 	if (reply == NULL) return;
 	RedisConnector *self = (RedisConnector*)c->data;
-	Local<Function> cb = Local<Function>::Cast(self->callbacks->Get(Number::New(callback_id)));
-	self->callbacks->Delete(Number::New(callback_id)->ToString());
+	Local<Function> cb = Local<Function>::Cast(NanNew(self->callbacks)->Get(NanNew(callback_id)));
+	NanNew(self->callbacks)->Delete(NanNew(callback_id)->ToString());
 	if (reply->type == REDIS_REPLY_ERROR) {
 		//LOG("[%d] redis error: %s\n", callback_id, reply->str);
 		Local<Value> argv[1] = {
-			Local<Value>::New(String::New(reply->str))
+			NanNew(reply->str)
 		};
-		cb->Call(Context::GetCurrent()->Global(), 1, argv);
+		cb->Call(NanGetCurrentContext()->Global(), 1, argv);
 		return;
 	}
 	Local<Value> resp;
-	Local<Array> arr = Array::New();
+	Local<Array> arr = NanNew<Array>();
 	
 	switch(reply->type) {
 	case REDIS_REPLY_NIL:
-		resp = Local<Value>::New(Null());
+		resp = NanNull();
 		break;
 	case REDIS_REPLY_INTEGER:
-		resp = Local<Value>::New(Number::New(reply->integer));
+		resp = NanNew<Number>(reply->integer);
 		break;
 	case REDIS_REPLY_STATUS:
 	case REDIS_REPLY_STRING:
-		resp = Local<Value>::New(String::New(reply->str));
+		resp = NanNew(reply->str);
 		break;
 	case REDIS_REPLY_ARRAY:
 		for (size_t i=0; i<reply->elements; i++) {
 			if(reply->element[i]->type == REDIS_REPLY_STRING)
-				arr->Set(Number::New(i), String::New(reply->element[i]->str));
+				arr->Set(NanNew<Number>(i), NanNew(reply->element[i]->str));
 			else if(reply->element[i]->type == REDIS_REPLY_INTEGER)
-				arr->Set(Number::New(i), Number::New(reply->element[i]->integer));
+				arr->Set(NanNew<Number>(i), NanNew<Number>(reply->element[i]->integer));
 			else if(reply->element[i]->type == REDIS_REPLY_NIL)
-				arr->Set(Number::New(i), Local<Value>::New(Null()));
+				arr->Set(NanNew<Number>(i), NanNull());
 			else {
-				ThrowException(Exception::TypeError(String::New("Protocol error, unknwown type in Array")));
+				NanThrowTypeError("Protocol error, unknwown type in Array");
+				NanReturnUndefined();
 				return;
 			}
 		}
-		resp = Local<Value>::New(arr);
+		resp = arr;
 		break;
 	default:
 		LOG("[%d] protocol error type %d\n", callback_id, reply->type);
 		Local<Value> argv[1] = {
-			Local<Value>::New(String::New("Protocol error, unknown type"))
+			NanNew("Protocol error, unknown type")
 		};
-		cb->Call(Context::GetCurrent()->Global(), 1, argv);
+		cb->Call(NanGetCurrentContext()->Global(), 1, argv);
 		return;
 	}
 	
 	Local<Value> argv[2] = {
-		Local<Value>::New(Null()),
+		NanNull(),
 		resp
 	};
-	cb->Call(Context::GetCurrent()->Global(), 2, argv);
+	cb->Call(NanGetCurrentContext()->Global(), 2, argv);
 }
 
-Handle<Value> RedisConnector::RedisCmd(const Arguments& args) {
+NAN_METHOD(RedisConnector::RedisCmd) {
 	//LOG("%s\n", __PRETTY_FUNCTION__);
-	HandleScope scope;
+	NanScope();
 	if(args.Length() != 2) {
-		ThrowException(Exception::TypeError(String::New("Wrong arguments count")));
-		return scope.Close(Undefined());
+		NanThrowTypeError("Wrong arguments count");
+		NanReturnUndefined();
 	}
 	RedisConnector* self = ObjectWrap::Unwrap<RedisConnector>(args.This());
 	
@@ -216,7 +222,7 @@ Handle<Value> RedisConnector::RedisCmd(const Arguments& args) {
 	char **argv = (char**)malloc(array->Length()*sizeof(char*));
 	size_t *argvlen = (size_t*)malloc(array->Length()*sizeof(size_t*));
 	uint32_t callback_id = self->callback_id++;
-	self->callbacks->Set(Number::New(callback_id), cb);
+	NanNew(self->callbacks)->Set(NanNew<Number>(callback_id), cb);
 	
 	for(uint32_t i=0;i<array->Length();i++) {
 		String::Utf8Value str(array->Get(i));
@@ -232,5 +238,5 @@ Handle<Value> RedisConnector::RedisCmd(const Arguments& args) {
 	free(argv);
 	free(argvlen);
 	
-	return scope.Close(Undefined());
+	NanReturnUndefined();
 }
