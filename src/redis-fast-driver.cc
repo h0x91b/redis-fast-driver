@@ -185,7 +185,6 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 				arr->Set(NanNew<Number>(i), NanNull());
 			else {
 				NanThrowTypeError("Protocol error, unknwown type in Array");
-				NanReturnUndefined();
 				return;
 			}
 		}
