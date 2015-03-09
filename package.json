@@ -1,8 +1,11 @@
 {
   "name": "redis-fast-driver",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Fast truly async driver for redis",
   "main": "index.js",
+  "engines" : {
+    "node" : ">=0.8" 
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "install": "node-gyp rebuild"
@@ -17,5 +20,8 @@
   "bugs": {
     "url": "https://github.com/h0x91b/redis-fast-driver/issues"
   },
-  "homepage": "https://github.com/h0x91b/redis-fast-driver"
+  "homepage": "https://github.com/h0x91b/redis-fast-driver",
+  "dependencies": {
+    "nan": "^1.7.0"
+  }
 }
