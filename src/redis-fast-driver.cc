@@ -144,6 +144,36 @@ NAN_METHOD(RedisConnector::Connect) {
 	NanReturnUndefined();
 }
 
+Local<Value> parseResponse(redisReply *reply) {
+	Local<Value> resp;
+	Local<Array> arr = NanNew<Array>();
+	
+	switch(reply->type) {
+	case REDIS_REPLY_NIL:
+		resp = NanNull();
+		break;
+	case REDIS_REPLY_INTEGER:
+		resp = NanNew<Number>(reply->integer);
+		break;
+	case REDIS_REPLY_STATUS:
+	case REDIS_REPLY_STRING:
+		resp = NanNew(reply->str);
+		break;
+	case REDIS_REPLY_ARRAY:
+		for (size_t i=0; i<reply->elements; i++) {
+			arr->Set(NanNew<Number>(i), parseResponse(reply->element[i]));
+		}
+		resp = arr;
+		break;
+	default:
+		printf("Redis rotocol error, unknown type %d\n", reply->type);		
+		NanThrowTypeError("Protocol error, unknown type");
+		return NanUndefined();
+	}
+	
+	return resp;
+}
+
 void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) {
 	NanScope();
 	//LOG("%s\n", __PRETTY_FUNCTION__);
@@ -161,39 +191,11 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 		cb->Call(NanGetCurrentContext()->Global(), 1, argv);
 		return;
 	}
-	Local<Value> resp;
-	Local<Array> arr = NanNew<Array>();
 	
-	switch(reply->type) {
-	case REDIS_REPLY_NIL:
-		resp = NanNull();
-		break;
-	case REDIS_REPLY_INTEGER:
-		resp = NanNew<Number>(reply->integer);
-		break;
-	case REDIS_REPLY_STATUS:
-	case REDIS_REPLY_STRING:
-		resp = NanNew(reply->str);
-		break;
-	case REDIS_REPLY_ARRAY:
-		for (size_t i=0; i<reply->elements; i++) {
-			if(reply->element[i]->type == REDIS_REPLY_STRING)
-				arr->Set(NanNew<Number>(i), NanNew(reply->element[i]->str));
-			else if(reply->element[i]->type == REDIS_REPLY_INTEGER)
-				arr->Set(NanNew<Number>(i), NanNew<Number>(reply->element[i]->integer));
-			else if(reply->element[i]->type == REDIS_REPLY_NIL)
-				arr->Set(NanNew<Number>(i), NanNull());
-			else {
-				NanThrowTypeError("Protocol error, unknwown type in Array");
-				return;
-			}
-		}
-		resp = arr;
-		break;
-	default:
-		LOG("[%d] protocol error type %d\n", callback_id, reply->type);
+	Local<Value> resp = parseResponse(reply);
+	if( resp->IsUndefined() ) {
 		Local<Value> argv[1] = {
-			NanNew("Protocol error, unknown type")
+			NanNew<String>("Protocol error, can not parse answer from redis")
 		};
 		cb->Call(NanGetCurrentContext()->Global(), 1, argv);
 		return;

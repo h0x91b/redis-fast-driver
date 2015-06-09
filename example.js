@@ -14,6 +14,7 @@ r.on('error', function(e){
 });
 
 r.rawCall(['hmset', 'hset:1', 'a', 1, 'b', 2, 'c', 3]);
+r.rawCall(['zadd', 'zset:1', 1, 'a', 2, 'b', 3, 'c', 4, 'd']);
 
 var pings = 3;
 
@@ -26,39 +27,95 @@ function ping() {
 		console.log('hmget', e, d);
 	});
 	
+	r.rawCall(['zrange', 'zset:1', 0, -1, 'WITHSCORES'], function(e,d){
+		console.log('zrange', e, d);
+	});
+	
 	r.rawCall(['hgetall', 'hset:1'], function(e,d){
 		console.log('hgetall', e, d);
+	});
+	
+	r.rawCall(['SCAN', 0], function(e,d){
+		console.log('scan 0', e, d);
+	});
+	
+	r.rawCall(['HSCAN', 'hset:1', 0], function(e,d){
+		console.log('hscan 0', e, d);
 	});
 	
 	if(--pings > 0)
 		setTimeout(ping, 1000);
 	else
-		bench(0);
+		setTimeout(bench, 1000, [1000, 5000, 10000, 25000]);
 }
 
-var benches = [1000, 10000, 50000, 50000, 50000, 50000, 50000];
-
-function bench(test) {
-	var toDo = benches[test];
-	if(!toDo) {
-		console.log('The End');
-		r.end();
-		return;
+var tests = [
+	{
+		description: 'PING command',
+		cmd: ['PING']
+	},
+	{
+		description: 'INCR command',
+		cmd: ['INCR', 'INCR:TMP']
+	},
+	{
+		description: 'GET command',
+		cmd: ['GET', 'INCR:TMP']
+	},
+	{
+		description: 'HGET command',
+		cmd: ['HGET', 'hset:1', 'a']
+	},
+	{
+		description: 'HGETALL command',
+		cmd: ['HGETALL', 'hset:1']
+	},
+	{
+		description: 'ZRANGE 0 4 command',
+		cmd: ['ZRANGE', 'zset:1', 0, 4]
 	}
-	var start = null;
-	r.rawCall(['DEL', 'INCR:TMP'], function(e){
-		console.log('Begin bench');
-		start = +new Date(); //timestamp with ms
-		for(var i=0;i<toDo;i++) {
-			r.rawCall(['INCR', 'INCR:TMP'], onComplete);
-		}
-	});
+];
+
+function bench(repeats) {
+	console.log(Array(50).join('='));
+	var repeatIndex = 0;
+	var i = 0;
+	start();
 	
-	function onComplete(e, result) {
-		if(e) throw new Error(e);
-		if(result >= toDo) {
-			console.log('%s INCR completed in %s ms, speed %s in second', toDo, +new Date() - start, (result/((+new Date() - start)/1000)).toFixed(2));
-			setTimeout(bench, 1000, ++test);
+	function start() {
+		var repeat = repeats[repeatIndex++];
+		if(!repeat) {
+			console.log(Array(50).join('='));
+			console.log('the end');
+			r.end();
+			return;
+		}
+		i=0;
+		doIt(repeat, start);
+	}
+	
+	function doIt(repeat, done) {
+		var cmd = tests[i++];
+		if(!cmd) {
+			return done(); 
+		}
+		console.log('===\nStart test: %s %s times', cmd.description, repeat);
+		var start = +new Date();
+		for(var n=0;n<repeat;n++) {
+			r.rawCall(cmd.cmd, onComplete);
+		}
+		
+		var complete = 0;
+		function onComplete(e, data){
+			if(e) {
+				console.log('error', e);
+			}
+			if(++complete === repeat) {
+				var now = +new Date();
+				var dt = now - start;
+				console.log('Test complete in %sms, speed %s in second, cold down 1.5 sec', dt, (repeat/(dt/1000)).toFixed(2));
+				setTimeout(doIt, 1500, repeat, done);
+			}
 		}
 	}
 }
