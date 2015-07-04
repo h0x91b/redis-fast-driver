@@ -33,8 +33,13 @@ function Redis(opts) {
 				return;
 			}
 			self.ready = true;
-			if(self.queue.length > 0)
-				self.rawCall(['PING']);
+			if(self.queue.length > 0){
+				var queue = self.queue;
+				self.queue = [];
+				queue.forEach(function(cmd){
+					self.redis.redisCmd(cmd.args, cmd.cb);
+				});
+			}
 			if(!self.readyFirstTime) {
 				self.readyFirstTime = true;
 				self.emit('ready');
