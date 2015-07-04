@@ -1,8 +1,6 @@
 #ifndef REDIS_CLUSTER_H
 #define REDIS_CLUSTER_H
 
-#include <nan.h>
-
 #if ENABLELOG
 #define LOG(...) fprintf( stderr, __VA_ARGS__ );
 #else
@@ -23,15 +21,16 @@ public:
 	v8::Persistent<v8::Object> callbacks;
 	uint32_t callback_id;
 	double value_;
+	bool is_connected;
 
 private:
 	explicit RedisConnector(double value = 0);
 	~RedisConnector();
 
-	static NAN_METHOD(New);
-	static NAN_METHOD(Connect);
-	static NAN_METHOD(Disconnect);
-	static NAN_METHOD(RedisCmd);
+	static v8::Handle<v8::Value> New(const v8::Arguments& args);
+	static v8::Handle<v8::Value> Connect(const v8::Arguments& args);
+	static v8::Handle<v8::Value> Disconnect(const v8::Arguments& args);
+	static v8::Handle<v8::Value> RedisCmd(const v8::Arguments& args);
 	static void connectCallback(const redisAsyncContext *c, int status);
 	static void disconnectCallback(const redisAsyncContext *c, int status);
 	static void getCallback(redisAsyncContext *c, void *r, void *privdata);
