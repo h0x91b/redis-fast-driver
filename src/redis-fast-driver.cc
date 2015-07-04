@@ -63,6 +63,7 @@ NAN_METHOD(RedisConnector::New) {
 void RedisConnector::connectCallback(const redisAsyncContext *c, int status) {
 	LOG("%s\n", __PRETTY_FUNCTION__);
 	RedisConnector *self = (RedisConnector*)c->data;
+	self->is_connected = true;
 	if (status != REDIS_OK) {
 		LOG("%s !REDIS_OK\n", __PRETTY_FUNCTION__);
 		Local<Value> argv[1] = {
@@ -80,6 +81,7 @@ void RedisConnector::connectCallback(const redisAsyncContext *c, int status) {
 void RedisConnector::disconnectCallback(const redisAsyncContext *c, int status) {
 	LOG("%s\n", __PRETTY_FUNCTION__);
 	RedisConnector *self = (RedisConnector*)c->data;
+	self->is_connected = false;
 	if (status != REDIS_OK) {
 		Local<Value> argv[1] = {
 			NanNew<String>(c->errstr)
@@ -100,7 +102,8 @@ NAN_METHOD(RedisConnector::Disconnect) {
 	if(self->c->replies.head!=NULL) {
 		LOG("there is more callbacks in queue...\n");
 	}
-	redisAsyncDisconnect(self->c);
+	if(self->is_connected) redisAsyncDisconnect(self->c);
+	self->is_connected = false;
 	self->c = NULL;
 	NanReturnUndefined();
 }
