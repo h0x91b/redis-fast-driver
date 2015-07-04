@@ -185,7 +185,13 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 	if (reply == NULL) return;
 	RedisConnector *self = (RedisConnector*)c->data;
 	Local<Function> cb = Local<Function>::Cast(NanNew(self->callbacks)->Get(NanNew(callback_id)));
-	NanNew(self->callbacks)->Delete(NanNew(callback_id)->ToString());
+	if(!(c->c.flags & REDIS_SUBSCRIBED || c->c.flags & REDIS_MONITORING)) {
+		// LOG("delete, flags %i id %i\n", c->c.flags, callback_id);
+		NanNew(self->callbacks)->Delete(NanNew(callback_id)->ToString());
+	} else {
+		// LOG("flags %i id %i\n", c->c.flags, callback_id);
+	}
+	
 	if (reply->type == REDIS_REPLY_ERROR) {
 		//LOG("[%d] redis error: %s\n", callback_id, reply->str);
 		Local<Value> argv[1] = {
