@@ -5,13 +5,13 @@ This node module use hiredis async library written on C by Salvatore Sanfilippo.
 Notice
 ===
 
-Publish/Subscribe still not supported, but all regular functions works fine almost an year on my production enviroment under really have load (30k ops/sec each redis in cluster)...
-Also this driver used in https://github.com/joaojeronimo/node_redis_cluster 
+All regular functions including PUB/SUB and MONITOR mode works fine, this driver almost an year on my production enviroment under really have load (30k ops/sec each redis in cluster)...
+Also this driver used in https://github.com/joaojeronimo/node_redis_cluster and my fork https://github.com/h0x91b/fast-redis-cluster
 
 Usage
 ===
 
-Look at `example.js` for usage.
+Look at `example*.js` for usage.
 
 Speed
 ===
