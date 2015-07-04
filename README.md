@@ -1,12 +1,12 @@
+Redis-fast-driver
+===
+
 Trully async redis driver. Extremly simple, extremely fast.
 
 This node module use hiredis async library written on C by Salvatore Sanfilippo.
 
-Notice
-===
-
 All regular functions including PUB/SUB and MONITOR mode works fine, this driver almost an year on my production enviroment under really have load (30k ops/sec each redis in cluster)...
-Also this driver used in https://github.com/joaojeronimo/node_redis_cluster and my fork https://github.com/h0x91b/fast-redis-cluster
+Also this driver used in https://github.com/joaojeronimo/node_redis_cluster and in my fork https://github.com/h0x91b/fast-redis-cluster
 
 Usage
 ===
@@ -18,7 +18,7 @@ Speed
 
 Works MUCH faster then node-redis and even faster then `redis-benchmark` tool.
 
-Results for my MacBook Pro (Retina, 15-inch, Mid 2014) via tcp/ip socket.
+Results for my MacBook Pro (Retina, 15-inch, Mid 2014) via tcp/ip.
 
 My driver:
 
@@ -114,3 +114,12 @@ Redis benchmark tool:
 	LRANGE_500 (first 450 elements): 9039.96 requests per second
 	LRANGE_600 (first 600 elements): 6799.95 requests per second
 	MSET (10 keys): 87873.46 requests per second
+
+Author
+===
+
+Arseniy Pavlenko h0x91b@gmail.com
+
+Skype: h0x91b
+
+Linkedin: https://il.linkedin.com/in/h0x91b
