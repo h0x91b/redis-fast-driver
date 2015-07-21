@@ -109,7 +109,7 @@ Redis.prototype.rawCall = function(args, cb) {
 
 Redis.prototype.end = function() {
 	this.ready = false;
-	this.redis.disconnect();
+	if(this.redis) this.redis.disconnect();
 	this.redis = null;
 	this.destroyed = true;
 };
