@@ -176,6 +176,44 @@ Local<Value> parseResponse(redisReply *reply) {
 	
 	return resp;
 }
+//
+// void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) {
+// 	NanScope();
+// 	//LOG("%s\n", __PRETTY_FUNCTION__);
+// 	redisReply *reply = (redisReply*)r;
+// 	uint32_t callback_id = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(privdata));
+// 	if (reply == NULL) return;
+// 	RedisConnector *self = (RedisConnector*)c->data;
+// 	Local<Function> cb = Local<Function>::Cast(NanNew(self->callbacks)->Get(NanNew(callback_id)));
+// 	Local<Function> setImmediate = Local<Function>::Cast(NanGetCurrentContext()->Global()->Get(NanNew("setImmediate")));
+// 	NanNew(self->callbacks)->Delete(NanNew(callback_id)->ToString());
+// 	if (reply->type == REDIS_REPLY_ERROR) {
+// 		//LOG("[%d] redis error: %s\n", callback_id, reply->str);
+// 		Local<Value> argv[2] = {
+// 			NanNew(cb),
+// 			NanNew(reply->str)
+// 		};
+// 		setImmediate->Call(NanGetCurrentContext()->Global(), 2, argv);
+// 		return;
+// 	}
+//
+// 	Local<Value> resp = parseResponse(reply);
+// 	if( resp->IsUndefined() ) {
+// 		Local<Value> argv[2] = {
+// 			NanNew(cb),
+// 			NanNew<String>("Protocol error, can not parse answer from redis")
+// 		};
+// 		setImmediate->Call(NanGetCurrentContext()->Global(), 2, argv);
+// 		return;
+// 	}
+//
+// 	Local<Value> argv[3] = {
+// 		NanNew(cb),
+// 		NanNull(),
+// 		resp
+// 	};
+// 	setImmediate->Call(NanGetCurrentContext()->Global(), 3, argv);
+// }
 
 void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) {
 	NanScope();
@@ -185,6 +223,7 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 	if (reply == NULL) return;
 	RedisConnector *self = (RedisConnector*)c->data;
 	Local<Function> cb = Local<Function>::Cast(NanNew(self->callbacks)->Get(NanNew(callback_id)));
+	Local<Function> setImmediate = Local<Function>::Cast(NanGetCurrentContext()->Global()->Get(NanNew("setImmediate")));
 	if(!(c->c.flags & REDIS_SUBSCRIBED || c->c.flags & REDIS_MONITORING)) {
 		// LOG("delete, flags %i id %i\n", c->c.flags, callback_id);
 		NanNew(self->callbacks)->Delete(NanNew(callback_id)->ToString());
@@ -194,27 +233,30 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 	
 	if (reply->type == REDIS_REPLY_ERROR) {
 		//LOG("[%d] redis error: %s\n", callback_id, reply->str);
-		Local<Value> argv[1] = {
+		Local<Value> argv[2] = {
+			NanNew(cb),
 			NanNew(reply->str)
 		};
-		cb->Call(NanGetCurrentContext()->Global(), 1, argv);
+		setImmediate->Call(NanGetCurrentContext()->Global(), 2, argv);
 		return;
 	}
 	
 	Local<Value> resp = parseResponse(reply);
 	if( resp->IsUndefined() ) {
-		Local<Value> argv[1] = {
+		Local<Value> argv[2] = {
+			NanNew(cb),
 			NanNew<String>("Protocol error, can not parse answer from redis")
 		};
-		cb->Call(NanGetCurrentContext()->Global(), 1, argv);
+		cb->Call(NanGetCurrentContext()->Global(), 2, argv);
 		return;
 	}
 	
-	Local<Value> argv[2] = {
+	Local<Value> argv[3] = {
+		NanNew(cb),
 		NanNull(),
 		resp
 	};
-	cb->Call(NanGetCurrentContext()->Global(), 2, argv);
+	cb->Call(NanGetCurrentContext()->Global(), 3, argv);
 }
 
 NAN_METHOD(RedisConnector::RedisCmd) {
