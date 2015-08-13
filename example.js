@@ -121,3 +121,14 @@ function bench(repeats) {
 }
 
 ping();
+
+//fake multi test (this is fake multi)
+var multi = r.multi([
+	['incr', 'a', Redis.print],
+	['incr', 'a', Redis.print],
+	['incr', 'a', Redis.print],
+])
+.incr('a', Redis.print)
+.exec(function(e, replies){
+	console.log('multi complete', e, replies);
+});

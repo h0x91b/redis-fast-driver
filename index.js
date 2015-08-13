@@ -1,6 +1,7 @@
 var redis = require('./build/Release/redis-fast-driver');
 var util = require('util');
 var EventEmitter = require('events').EventEmitter;
+var commandsList = require('./commands-list.js');
 
 function Redis(opts) {
 	var self = this;
@@ -107,11 +108,85 @@ Redis.prototype.rawCall = function(args, cb) {
 	return this;
 };
 
+function FakeMulti(instance) {
+	var self = this;
+	this.instance = instance;
+	this.queue = [];
+	for(var i=0;i<commandsList.length;i++) {
+		if(commandsList[i] === 'exec') continue;
+		this[commandsList[i]] = fakeCall(commandsList[i]);
+	}
+	
+	function fakeCall(cmd) {
+		return function fakeCall() {
+			var args = Array.prototype.slice.call(arguments, 0);
+			args.unshift(cmd);
+			return self.rawCall(args);
+		}
+	}
+}
+
+FakeMulti.prototype = {
+	rawCall: function fakeRawCall(args, cb){
+		if(typeof args[args.length - 1] === 'function') {
+			cb = args.pop();
+		}
+		this.queue.push({
+			args: args,
+			cb: cb
+		});
+		return this;
+	},
+	exec: function exec(cb) {
+		var self = this;
+		var errors = Array(this.queue.length);
+		var responses = Array(this.queue.length);
+		var remain = this.queue.length;
+		
+		for(var i=0;i<this.queue.length;i++) {
+			this.instance.rawCall(this.queue[i].args, onResponse(i));
+		}
+		
+		function onResponse(index) {
+			return function onRedisCallback(e, data) {
+				errors[index] = e;
+				responses[index] = data;
+				if(self.queue[index].cb) {
+					try {
+						self.queue[index].cb(e, data);
+					} catch(e) {
+						console.log('exception while running user callback', e);
+					}
+				}
+				if(--remain === 0) {
+					if(cb) cb(errors, responses);
+				}
+			};
+		}
+		
+		return this;
+	}
+};
+//Only for backward compitability with standart redis driver.
+Redis.prototype.multi = function(commands) {
+	var fake = new FakeMulti(this);
+	if(commands) {
+		for(var i=0;i<commands.length;i++)
+			fake.rawCall(commands[i]);
+	}
+	return fake;
+};
+
 Redis.prototype.end = function() {
 	this.ready = false;
 	if(this.redis) this.redis.disconnect();
 	this.redis = null;
 	this.destroyed = true;
+};
+
+
+Redis.print = function(e, resp) {
+	console.log('err: %s, response: ', e, resp);
 };
 
 module.exports = Redis;
