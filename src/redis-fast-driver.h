@@ -18,9 +18,9 @@
 class RedisConnector : public node::ObjectWrap {
 public:
 	static void Init(v8::Handle<v8::Object> exports);
-	v8::Persistent<v8::Function> connectCb;
-	v8::Persistent<v8::Function> disconnectCb;
-	v8::Persistent<v8::Object> callbacks;
+	Nan::Persistent<v8::Function> connectCb;
+	Nan::Persistent<v8::Function> disconnectCb;
+	Nan::Persistent<v8::Object> callbacks;
 	uint32_t callback_id;
 	double value_;
 	bool is_connected;
@@ -36,7 +36,7 @@ private:
 	static void connectCallback(const redisAsyncContext *c, int status);
 	static void disconnectCallback(const redisAsyncContext *c, int status);
 	static void getCallback(redisAsyncContext *c, void *r, void *privdata);
-	static v8::Persistent<v8::Function> constructor;
+	static Nan::Persistent<v8::Function> constructor;
 	redisAsyncContext *c;
 };
 
