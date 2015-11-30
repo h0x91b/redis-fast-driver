@@ -147,29 +147,32 @@ NAN_METHOD(RedisConnector::Connect) {
 	NanReturnUndefined();
 }
 
-Local<Value> parseResponse(redisReply *reply) {
+Local<Value> parseResponse(redisReply *reply, size_t* size) {
 	Local<Value> resp;
 	Local<Array> arr = NanNew<Array>();
 	
 	switch(reply->type) {
 	case REDIS_REPLY_NIL:
 		resp = NanNull();
+		*size += sizeof(NULL);
 		break;
 	case REDIS_REPLY_INTEGER:
 		resp = NanNew<Number>(reply->integer);
+		*size += sizeof(int);
 		break;
 	case REDIS_REPLY_STATUS:
 	case REDIS_REPLY_STRING:
-		resp = NanNew(reply->str);
+		resp = NanNew(reply->str, reply->len);
+		*size += reply->len;
 		break;
 	case REDIS_REPLY_ARRAY:
 		for (size_t i=0; i<reply->elements; i++) {
-			arr->Set(NanNew<Number>(i), parseResponse(reply->element[i]));
+			arr->Set(NanNew<Number>(i), parseResponse(reply->element[i], size));
 		}
 		resp = arr;
 		break;
 	default:
-		printf("Redis rotocol error, unknown type %d\n", reply->type);		
+		printf("Redis rotocol error, unknown type %d\n", reply->type);
 		NanThrowTypeError("Protocol error, unknown type");
 		return NanUndefined();
 	}
@@ -179,6 +182,7 @@ Local<Value> parseResponse(redisReply *reply) {
 
 void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) {
 	NanScope();
+	size_t totalSize = 0;
 	//LOG("%s\n", __PRETTY_FUNCTION__);
 	redisReply *reply = (redisReply*)r;
 	uint32_t callback_id = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(privdata));
@@ -195,30 +199,36 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 	
 	if (reply->type == REDIS_REPLY_ERROR) {
 		//LOG("[%d] redis error: %s\n", callback_id, reply->str);
-		Local<Value> argv[2] = {
+		totalSize += reply->len;
+		Local<Value> argv[4] = {
 			NanNew(cb),
-			NanNew(reply->str)
+			NanNew(reply->str, reply->len),
+			NanUndefined(),
+			NanNew<Number>(totalSize)
 		};
-		setImmediate->Call(NanGetCurrentContext()->Global(), 2, argv);
+		setImmediate->Call(NanGetCurrentContext()->Global(), 4, argv);
 		return;
 	}
-	
-	Local<Value> resp = parseResponse(reply);
+	Local<Value> resp = parseResponse(reply, &totalSize);
+	// printf("Total size %lu\n", totalSize);
 	if( resp->IsUndefined() ) {
-		Local<Value> argv[2] = {
+		Local<Value> argv[4] = {
 			NanNew(cb),
-			NanNew<String>("Protocol error, can not parse answer from redis")
+			NanNew<String>("Protocol error, can not parse answer from redis"),
+			NanUndefined(),
+			NanNew<Number>(totalSize)
 		};
-		setImmediate->Call(NanGetCurrentContext()->Global(), 2, argv);
+		setImmediate->Call(NanGetCurrentContext()->Global(), 4, argv);
 		return;
 	}
 	
-	Local<Value> argv[3] = {
+	Local<Value> argv[4] = {
 		NanNew(cb),
 		NanNull(),
-		resp
+		resp,
+		NanNew<Number>(totalSize)
 	};
-	setImmediate->Call(NanGetCurrentContext()->Global(), 3, argv);
+	setImmediate->Call(NanGetCurrentContext()->Global(), 4, argv);
 }
 
 NAN_METHOD(RedisConnector::RedisCmd) {

@@ -23,16 +23,16 @@ function ping() {
 		console.log('PING', e, d);
 	});
 	
-	r.rawCall(['hmget', 'hset:1', 'a', 'b', 'c', 'f'], function(e,d){
-		console.log('hmget', e, d);
+	r.rawCall(['hmget', 'hset:1', 'a', 'b', 'c', 'f'], function(e,d,size){
+		console.log('hmget', e, d, size);
 	});
 	
 	r.rawCall(['zrange', 'zset:1', 0, -1, 'WITHSCORES'], function(e,d){
 		console.log('zrange', e, d);
 	});
 	
-	r.rawCall(['hgetall', 'hset:1'], function(e,d){
-		console.log('hgetall', e, d);
+	r.rawCall(['hgetall', 'hset:1'], function(e,d,size){
+		console.log('hgetall', e, d, size);
 	});
 	
 	r.rawCall(['SCAN', 0], function(e,d){
@@ -41,6 +41,12 @@ function ping() {
 	
 	r.rawCall(['HSCAN', 'hset:1', 0], function(e,d){
 		console.log('hscan 0', e, d);
+	});
+	
+	r.rawCall(['SET', 'kv:long', Array(1024 + 1).join('.')], function(e,d){
+		r.rawCall(['GET', 'kv:long'], function(e,d,size){
+			console.log('sizeof long key is %s', size); //1024
+		});
 	});
 	
 	if(--pings > 0)
