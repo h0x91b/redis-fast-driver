@@ -123,6 +123,8 @@ NAN_METHOD(RedisConnector::Connect) {
 	self->connectCb.Reset(connectCb);
 	Local<Function> disconnectCb = Local<Function>::Cast(info[3]);
 	self->disconnectCb.Reset(disconnectCb);
+	Local<Function> setImmediate = Local<Function>::Cast(Nan::GetCurrentContext()->Global()->Get(Nan::New("setImmediate").ToLocalChecked()));
+	self->setImmediate.Reset(setImmediate);
 	
 	if(strstr(host,"/")==host) {
 		LOG("connect to unix:%s\n", host);
@@ -190,7 +192,7 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 	RedisConnector *self = (RedisConnector*)c->data;
 	Local<Function> jsCallback = Local<Function>::Cast(Nan::New(self->callbacks)->Get(Nan::New(callback_id)));
 	Nan::Callback cb(jsCallback);
-	Local<Function> setImmediate = Local<Function>::Cast(Nan::GetCurrentContext()->Global()->Get(Nan::New("setImmediate").ToLocalChecked()));
+	Local<Function> setImmediate = Nan::New(self->setImmediate);
 	if(!(c->c.flags & REDIS_SUBSCRIBED || c->c.flags & REDIS_MONITORING)) {
 		// LOG("delete, flags %i id %i\n", c->c.flags, callback_id);
 		Nan::New<v8::Object>(self->callbacks)->Delete(Nan::New(callback_id)->ToString());
@@ -230,6 +232,13 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 		Nan::New<Number>(totalSize)
 	};
 	setImmediate->Call(Nan::GetCurrentContext()->Global(), 4, argv);
+	
+	// Local<Value> argv[3] = {
+	// 	Nan::Null(),
+	// 	resp,
+	// 	Nan::New<Number>(totalSize)
+	// };
+	// jsCallback->Call(Nan::GetCurrentContext()->Global(), 3, argv);
 }
 
 NAN_METHOD(RedisConnector::RedisCmd) {

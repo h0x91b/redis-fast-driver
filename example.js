@@ -52,7 +52,7 @@ function ping() {
 	if(--pings > 0)
 		setTimeout(ping, 1000);
 	else
-		setTimeout(bench, 1000, [1000, 5000, 10000, 25000]);
+		setTimeout(bench, 1000, [2500, 5000, 10000, 25000, 50000]);
 }
 
 var tests = [
