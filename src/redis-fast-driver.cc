@@ -61,15 +61,16 @@ void RedisConnector::connectCallback(const redisAsyncContext *c, int status) {
 	LOG("%s\n", __PRETTY_FUNCTION__);
 	Nan::HandleScope scope;
 	RedisConnector *self = (RedisConnector*)c->data;
-	self->is_connected = true;
 	if (status != REDIS_OK) {
 		LOG("%s !REDIS_OK\n", __PRETTY_FUNCTION__);
+		self->is_connected = false;
 		Local<Value> argv[1] = {
 			Nan::New<String>(c->errstr).ToLocalChecked()
 		};
 		Nan::New(self->connectCb)->Call(Nan::GetCurrentContext()->Global(), 1, argv);
 		return;
 	}
+	self->is_connected = true;
 	Local<Value> argv[1] = {
 		Nan::Null()
 	};
