@@ -61,15 +61,16 @@ void RedisConnector::connectCallback(const redisAsyncContext *c, int status) {
 	LOG("%s\n", __PRETTY_FUNCTION__);
 	Nan::HandleScope scope;
 	RedisConnector *self = (RedisConnector*)c->data;
-	self->is_connected = true;
 	if (status != REDIS_OK) {
 		LOG("%s !REDIS_OK\n", __PRETTY_FUNCTION__);
+		self->is_connected = false;
 		Local<Value> argv[1] = {
 			Nan::New<String>(c->errstr).ToLocalChecked()
 		};
 		Nan::New(self->connectCb)->Call(Nan::GetCurrentContext()->Global(), 1, argv);
 		return;
 	}
+	self->is_connected = true;
 	Local<Value> argv[1] = {
 		Nan::Null()
 	};
@@ -123,19 +124,25 @@ NAN_METHOD(RedisConnector::Connect) {
 	self->connectCb.Reset(connectCb);
 	Local<Function> disconnectCb = Local<Function>::Cast(info[3]);
 	self->disconnectCb.Reset(disconnectCb);
+	Local<Function> setImmediate = Local<Function>::Cast(Nan::GetCurrentContext()->Global()->Get(Nan::New("setImmediate").ToLocalChecked()));
+	self->setImmediate.Reset(setImmediate);
 	
-	if(strstr(host,"/")==host) {
-		LOG("connect to unix:%s\n", host);
-		self->c = redisAsyncConnectUnix(host);
-	} else {
-		LOG("connect to %s:%d\n", host, port);
-		self->c = redisAsyncConnect(host, port);
-	}
-	if (self->c->err) {
-		LOG("Error: %s\n", self->c->errstr);
-		// handle error
-		Nan::ThrowTypeError(self->c->errstr);
-		info.GetReturnValue().Set(Nan::Undefined());
+	for(int i=0;i<10;i++) {
+		if(strstr(host,"/")==host) {
+			LOG("connect to unix:%s\n", host);
+			self->c = redisAsyncConnectUnix(host);
+		} else {
+			LOG("connect to %s:%d\n", host, port);
+			self->c = redisAsyncConnect(host, port);
+		}
+		if (self->c->err) {
+			fprintf(stderr, "RedisConnector::Connect Error: %s\n", self->c->errstr);
+			fprintf(stderr, "RedisConnector::Connect Host: %s port: %d\n", host, port);
+			// handle error
+			Nan::ThrowError(self->c->errstr);
+			info.GetReturnValue().Set(Nan::Undefined());
+			return;
+		}
 	}
 	uv_loop_t* loop = uv_default_loop();
 	self->c->data = (void*)self;
@@ -190,7 +197,7 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 	RedisConnector *self = (RedisConnector*)c->data;
 	Local<Function> jsCallback = Local<Function>::Cast(Nan::New(self->callbacks)->Get(Nan::New(callback_id)));
 	Nan::Callback cb(jsCallback);
-	Local<Function> setImmediate = Local<Function>::Cast(Nan::GetCurrentContext()->Global()->Get(Nan::New("setImmediate").ToLocalChecked()));
+	Local<Function> setImmediate = Nan::New(self->setImmediate);
 	if(!(c->c.flags & REDIS_SUBSCRIBED || c->c.flags & REDIS_MONITORING)) {
 		// LOG("delete, flags %i id %i\n", c->c.flags, callback_id);
 		Nan::New<v8::Object>(self->callbacks)->Delete(Nan::New(callback_id)->ToString());
@@ -230,6 +237,13 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 		Nan::New<Number>(totalSize)
 	};
 	setImmediate->Call(Nan::GetCurrentContext()->Global(), 4, argv);
+	
+	// Local<Value> argv[3] = {
+	// 	Nan::Null(),
+	// 	resp,
+	// 	Nan::New<Number>(totalSize)
+	// };
+	// jsCallback->Call(Nan::GetCurrentContext()->Global(), 3, argv);
 }
 
 NAN_METHOD(RedisConnector::RedisCmd) {

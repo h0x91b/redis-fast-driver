@@ -20,6 +20,7 @@ public:
 	static void Init(v8::Handle<v8::Object> exports);
 	Nan::Persistent<v8::Function> connectCb;
 	Nan::Persistent<v8::Function> disconnectCb;
+	Nan::Persistent<v8::Function> setImmediate;
 	Nan::Persistent<v8::Object> callbacks;
 	uint32_t callback_id;
 	double value_;
