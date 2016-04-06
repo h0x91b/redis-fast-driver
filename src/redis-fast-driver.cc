@@ -127,22 +127,20 @@ NAN_METHOD(RedisConnector::Connect) {
 	Local<Function> setImmediate = Local<Function>::Cast(Nan::GetCurrentContext()->Global()->Get(Nan::New("setImmediate").ToLocalChecked()));
 	self->setImmediate.Reset(setImmediate);
 	
-	for(int i=0;i<10;i++) {
-		if(strstr(host,"/")==host) {
-			LOG("connect to unix:%s\n", host);
-			self->c = redisAsyncConnectUnix(host);
-		} else {
-			LOG("connect to %s:%d\n", host, port);
-			self->c = redisAsyncConnect(host, port);
-		}
-		if (self->c->err) {
-			fprintf(stderr, "RedisConnector::Connect Error: %s\n", self->c->errstr);
-			fprintf(stderr, "RedisConnector::Connect Host: %s port: %d\n", host, port);
-			// handle error
-			Nan::ThrowError(self->c->errstr);
-			info.GetReturnValue().Set(Nan::Undefined());
-			return;
-		}
+	if(strstr(host,"/")==host) {
+		LOG("connect to unix:%s\n", host);
+		self->c = redisAsyncConnectUnix(host);
+	} else {
+		LOG("connect to %s:%d\n", host, port);
+		self->c = redisAsyncConnect(host, port);
+	}
+	if (self->c->err) {
+		fprintf(stderr, "RedisConnector::Connect Error: %s\n", self->c->errstr);
+		fprintf(stderr, "RedisConnector::Connect Host: %s port: %d\n", host, port);
+		// handle error
+		Nan::ThrowError(self->c->errstr);
+		info.GetReturnValue().Set(Nan::Undefined());
+		return;
 	}
 	uv_loop_t* loop = uv_default_loop();
 	self->c->data = (void*)self;
