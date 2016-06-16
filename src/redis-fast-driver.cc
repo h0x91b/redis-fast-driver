@@ -151,7 +151,7 @@ NAN_METHOD(RedisConnector::Connect) {
 	info.GetReturnValue().Set(Nan::Undefined());
 }
 
-Local<Value> parseResponse(redisReply *reply, size_t* size) {
+Local<Value> parseResponse(redisReply *reply, size_t* size, bool isBinary) {
 	Nan::EscapableHandleScope scope;
 	Local<Value> resp;
 	Local<Array> arr = Nan::New<Array>();
@@ -167,12 +167,19 @@ Local<Value> parseResponse(redisReply *reply, size_t* size) {
 		break;
 	case REDIS_REPLY_STATUS:
 	case REDIS_REPLY_STRING:
-		resp = Nan::New<String>(reply->str, reply->len).ToLocalChecked();
+		if(isBinary) {
+			Local<ArrayBuffer> buf = ArrayBuffer::New(Isolate::GetCurrent(), reply->len);
+			ArrayBuffer::Contents content = buf->GetContents();
+			memcpy(content.Data(), reply->str, reply->len);
+			resp = buf;
+		} else {
+			resp = Nan::New<String>(reply->str, reply->len).ToLocalChecked();
+		}
 		*size += reply->len;
 		break;
 	case REDIS_REPLY_ARRAY:
 		for (size_t i=0; i<reply->elements; i++) {
-			arr->Set(Nan::New<Number>(i), parseResponse(reply->element[i], size));
+			arr->Set(Nan::New<Number>(i), parseResponse(reply->element[i], size, isBinary));
 		}
 		resp = arr;
 		break;
@@ -193,7 +200,9 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 	uint32_t callback_id = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(privdata));
 	if (reply == NULL) return;
 	RedisConnector *self = (RedisConnector*)c->data;
-	Local<Function> jsCallback = Local<Function>::Cast(Nan::New(self->callbacks)->Get(Nan::New(callback_id)));
+	Local<Object> cbInfo = Local<Object>::Cast(Nan::New(self->callbacks)->Get(Nan::New(callback_id)));
+	Local<Boolean> isBinary = Local<Boolean>::Cast(cbInfo->Get(Nan::New("binary").ToLocalChecked()));
+	Local<Function> jsCallback = Local<Function>::Cast(cbInfo->Get(Nan::New("cb").ToLocalChecked()));
 	Nan::Callback cb(jsCallback);
 	Local<Function> setImmediate = Nan::New(self->setImmediate);
 	if(!(c->c.flags & REDIS_SUBSCRIBED || c->c.flags & REDIS_MONITORING)) {
@@ -215,7 +224,7 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 		setImmediate->Call(Nan::GetCurrentContext()->Global(), 4, argv);
 		return;
 	}
-	Local<Value> resp = parseResponse(reply, &totalSize);
+	Local<Value> resp = parseResponse(reply, &totalSize, isBinary->Value());
 	// printf("Total size %lu\n", totalSize);
 	if( resp->IsUndefined() ) {
 		Local<Value> argv[4] = {
@@ -247,7 +256,7 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 NAN_METHOD(RedisConnector::RedisCmd) {
 	//LOG("%s\n", __PRETTY_FUNCTION__);
 	Nan::HandleScope scope;
-	if(info.Length() != 2) {
+	if(info.Length() != 3) {
 		Nan::ThrowTypeError("Wrong arguments count");
 		info.GetReturnValue().Set(Nan::Undefined());
 	}
@@ -255,18 +264,30 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	
 	Local<Array> array = Local<Array>::Cast(info[0]);
 	Local<Function> cb = Local<Function>::Cast(info[1]);
+	Local<Boolean> isBinary = Local<Boolean>::Cast(info[2]);
 	//Persistent<Function> cb = Persistent<Function>::New(Local<Function>::Cast(args[1]));
 	char **argv = (char**)malloc(array->Length()*sizeof(char*));
 	size_t *argvlen = (size_t*)malloc(array->Length()*sizeof(size_t*));
 	uint32_t callback_id = self->callback_id++;
-	Nan::New(self->callbacks)->Set(Nan::New<Number>(callback_id), cb);
+	Local<Object> cbInfo = Nan::New<Object>();
+	cbInfo->Set(Nan::New("cb").ToLocalChecked(), cb);
+	cbInfo->Set(Nan::New("binary").ToLocalChecked(), isBinary);
+	Nan::New(self->callbacks)->Set(Nan::New<Number>(callback_id), cbInfo);
 	
 	for(uint32_t i=0;i<array->Length();i++) {
-		String::Utf8Value str(array->Get(i));
-		argv[i] = (char*)malloc(str.length());
-		memcpy(argv[i], *str, str.length());
-		argvlen[i] = str.length();
-		//LOG("add \"%s\" len: %d\n", argv[i], argvlen[i]);
+		Local<Value> val = array->Get(i);
+		if(val->IsArrayBuffer()) {
+			ArrayBuffer::Contents content = Local<ArrayBuffer>::Cast(val)->GetContents();
+			argv[i] = (char*)malloc(content.ByteLength());
+			memcpy(argv[i], content.Data(), content.ByteLength());
+			argvlen[i] = content.ByteLength();
+		} else {
+			String::Utf8Value str(val);
+			argv[i] = (char*)malloc(str.length());
+			memcpy(argv[i], *str, str.length());
+			argvlen[i] = str.length();
+			//LOG("add \"%s\" len: %d\n", argv[i], argvlen[i]);
+		}
 	}
 	redisAsyncCommandArgv(self->c, getCallback, (void*)(intptr_t)callback_id, array->Length(), (const char**)argv, (const size_t*)argvlen);
 	for(uint32_t i=0;i<array->Length();i++) {

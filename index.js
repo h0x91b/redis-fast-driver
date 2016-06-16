@@ -77,12 +77,11 @@ function Redis(opts) {
 
 util.inherits(Redis, EventEmitter);
 
-Redis.prototype.rawCall = function(args, cb) {
+Redis.prototype.rawCallBinary = function(args, cb) {
 	var self = this;
 	if(!args || !Array.isArray(args)) {
 		throw 'first argument must be an Array';
 	}
-
 	if(typeof cb === 'undefined') {
 		cb = function(e) {
 		if(e)
@@ -92,7 +91,8 @@ Redis.prototype.rawCall = function(args, cb) {
 	if(!this.ready) {
 		this.queue.push({
 			args: args,
-			cb: cb
+			cb: cb,
+			binary: true
 		});
 		return;
 	}
@@ -100,10 +100,40 @@ Redis.prototype.rawCall = function(args, cb) {
 		var queue = this.queue;
 		this.queue = [];
 		queue.forEach(function(cmd){
-			self.redis.redisCmd(cmd.args, cmd.cb);
+			self.redis.redisCmd(cmd.args, cmd.cb, cmd.binary);
 		});
 	}
-	this.redis.redisCmd(args, cb);
+	this.redis.redisCmd(args, cb, true);
+	return this;
+};
+
+Redis.prototype.rawCall = function(args, cb) {
+	var self = this;
+	if(!args || !Array.isArray(args)) {
+		throw 'first argument must be an Array';
+	}
+	if(typeof cb === 'undefined') {
+		cb = function(e) {
+		if(e)
+			self.emit('error', e);
+		}
+	}
+	if(!this.ready) {
+		this.queue.push({
+			args: args,
+			cb: cb,
+			binary: false
+		});
+		return;
+	}
+	if(this.queue.length > 0) {
+		var queue = this.queue;
+		this.queue = [];
+		queue.forEach(function(cmd){
+			self.redis.redisCmd(cmd.args, cmd.cb, cmd.binary);
+		});
+	}
+	this.redis.redisCmd(args, cb, false);
 	return this;
 };
 
