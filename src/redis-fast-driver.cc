@@ -246,6 +246,13 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 
 NAN_METHOD(RedisConnector::RedisCmd) {
 	//LOG("%s\n", __PRETTY_FUNCTION__);
+	static size_t bufsize = 4096;
+	static char* buf = (char*)malloc(bufsize);
+	static size_t argvroom = 128;
+	static size_t *argvlen = (size_t*)malloc(argvroom * sizeof(size_t*));
+	static char **argv = (char**)malloc(argvroom * sizeof(char*));
+	
+	size_t bufused = 0;
 	Nan::HandleScope scope;
 	if(info.Length() != 2) {
 		Nan::ThrowTypeError("Wrong arguments count");
@@ -256,24 +263,38 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	Local<Array> array = Local<Array>::Cast(info[0]);
 	Local<Function> cb = Local<Function>::Cast(info[1]);
 	//Persistent<Function> cb = Persistent<Function>::New(Local<Function>::Cast(args[1]));
-	char **argv = (char**)malloc(array->Length()*sizeof(char*));
-	size_t *argvlen = (size_t*)malloc(array->Length()*sizeof(size_t*));
+	size_t arraylen = array->Length();
+	while(arraylen > argvroom) {
+		// printf("double room for argv %zu\n", argvroom);
+		argvroom *= 2;
+		free(argvlen);
+		free(argv);
+		argvlen = (size_t*)malloc(argvroom * sizeof(size_t*));
+		argv = (char**)malloc(argvroom * sizeof(char*));
+	}
 	uint32_t callback_id = self->callback_id++;
 	Nan::New(self->callbacks)->Set(Nan::New<Number>(callback_id), cb);
 	
-	for(uint32_t i=0;i<array->Length();i++) {
+processargs:
+	for(uint32_t i=0;i<arraylen;i++) {
 		String::Utf8Value str(array->Get(i));
-		argv[i] = (char*)malloc(str.length());
-		memcpy(argv[i], *str, str.length());
-		argvlen[i] = str.length();
+		uint32_t len = str.length();
+		while(bufused + len > bufsize) {
+			//double buf size
+			char *oldbuf = buf;
+			bufsize *= 2;
+			buf = (char*)malloc(bufsize);
+			memcpy(buf, oldbuf, bufused);
+			free(oldbuf);
+			bufused = 0;
+			goto processargs;
+		}
+		argv[i] = buf + bufused;
+		memcpy(buf+bufused, *str, len);
+		bufused += len;
+		argvlen[i] = len;
 		//LOG("add \"%s\" len: %d\n", argv[i], argvlen[i]);
 	}
-	redisAsyncCommandArgv(self->c, getCallback, (void*)(intptr_t)callback_id, array->Length(), (const char**)argv, (const size_t*)argvlen);
-	for(uint32_t i=0;i<array->Length();i++) {
-		free(argv[i]);
-	}
-	free(argv);
-	free(argvlen);
-	
+	redisAsyncCommandArgv(self->c, getCallback, (void*)(intptr_t)callback_id, arraylen, (const char**)argv, (const size_t*)argvlen);
 	info.GetReturnValue().Set(Nan::Undefined());
 }
