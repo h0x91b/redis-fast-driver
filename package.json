@@ -3,12 +3,13 @@
   "version": "1.0.3",
   "description": "Fast truly async driver for redis (based on hiredis async version)",
   "main": "index.js",
-  "engines" : {
-    "node" : ">=0.8" 
+  "engines": {
+    "node": ">=0.8"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "install": "node-gyp rebuild"
+    "install": "node-gyp rebuild",
+    "bench": "matcha benchmarks/*.js"
   },
   "repository": {
     "type": "git",
@@ -23,5 +24,8 @@
   "homepage": "https://github.com/h0x91b/redis-fast-driver",
   "dependencies": {
     "nan": "latest"
+  },
+  "devDependencies": {
+    "matcha": "^0.7.0"
   }
 }
