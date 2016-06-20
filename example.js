@@ -1,18 +1,38 @@
-var Redis = require('./index.js');
+var Redis = require('.');
+//var Redis = require('redis-fast-driver');
 
 var r = new Redis({
 	host: '127.0.0.1',
 	port: 6379
 });
 
+//happen only once
 r.on('ready', function(){
+	console.log('redis ready');
+});
+
+//happen each time when reconnected
+r.on('connected', function(){
 	console.log('redis connected');
+});
+
+r.on('disconnected', function(){
+	console.log('redis disconnected');
 });
 
 r.on('error', function(e){
 	console.log('redis error', e);
 });
 
+
+//rawCall function has 2 arguments,
+//1 - array which contain a redis command
+//2 - optional callback
+//Redis command is case insesitive, e.g. you can specify HMGET as HMGET, hmget or HmGeT
+//but keys and value are case sensitive, foo, Foo, FoO not the same...
+r.rawCall(['set', 'foo', 'bar'], function(err, resp){
+	console.log('SET via rawCall command returns err: %s, resp: %s', err, resp);
+});
 r.rawCall(['hmset', 'hset:1', 'a', 1, 'b', 2, 'c', 3]);
 r.rawCall(['zadd', 'zset:1', 1, 'a', 2, 'b', 3, 'c', 4, 'd']);
 

@@ -1,26 +1,112 @@
-Redis-fast-driver
-===
+# Redis-fast-driver
 
-Trully async redis driver. Extremly simple, extremely fast.
+Trully async redis driver designed for max performance. Extremly simple, extremely fast.
 
-This node module use hiredis async library written on C by Salvatore Sanfilippo.
+This node module use hiredis async library for connection and for parsing written on C by Salvatore Sanfilippo.
 
-All regular functions including PUB/SUB and MONITOR mode works fine, this driver almost an year on my production enviroment under really high load (30k ops/sec each redis in cluster)...
+All redis commands including PUB/SUB and MONITOR works fine, this driver 2 years on my production enviroment under really high load (30k ops/sec each redis in cluster).
 Also this driver used in https://github.com/joaojeronimo/node_redis_cluster and in my fork https://github.com/h0x91b/fast-redis-cluster
 
-Usage
-===
+# Usage
 
-Look at `example*.js` for usage.
+Check `example*.js` for usage.
 
-Speed
-===
+	var Redis = require('redis-fast-driver');
+	
+	var r = new Redis({
+		//host: '/tmp/redis.sock', //unix domain
+		host: '127.0.0.1', //can be IP or hostname
+		port: 6379,
+		maxretries: 10 //reconnect retries, default 10
+	});
+	
+	//happen only once
+	r.on('ready', function(){
+		console.log('redis ready');
+	});
+	
+	//happen each time when reconnected
+	r.on('connected', function(){
+		console.log('redis connected');
+	});
+	
+	r.on('disconnected', function(){
+		console.log('redis disconnected');
+	});
+	
+	r.on('error', function(e){
+		console.log('redis error', e);
+	});
+	
+	//rawCall function has 2 arguments,
+	//1 - array which contain a redis command
+	//2 - optional callback
+	//Redis command is case insesitive, e.g. you can specify HMGET as HMGET, hmget or HmGeT
+	//but keys and value are case sensitive, foo, Foo, FoO not the same...
+	r.rawCall(['set', 'foo', 'bar'], function(err, resp){
+		console.log('SET via rawCall command returns err: %s, resp: %s', err, resp);
+	});
+	
+	r.rawCall(['ping'], function(e, resp){
+		console.log('ping', e, resp);
+	});
 
-Works MUCH faster then node-redis and even faster then `redis-benchmark` tool.
+	//types are decoded exactly as redis returns it
+	//e.g. GET will return string
+	r.rawCall(['set', 'number', 123]);
+	r.rawCall(['get', 'number'], function(err, resp){
+		//type of "resp" will be "string"
+		//this is not related to driver this is behaviour of redis...
+		console.log('The value: "%s", number key becomes typeof %s', resp, typeof resp);
+	});
+	
+	//but INCR command on same key will return a number
+	r.rawCall(['incr', 'number'], function(err, resp){
+		//type of "resp" will be a "number"
+		console.log('The value after INCR: "%s", number key becomes typeof %s', resp, typeof resp);
+	});
+	//"number" type will be also on INCRBY ZSCORE HLEN and each other redis command which return a number.
+	
+	//ZRANGE will return an Array, same as redis returns..
+	r.rawCall(['zadd', 'sortedset', 1, 'a', 2, 'b', 3, 'c']);
+	r.rawCall(['zrange', 'sortedset', 0, -1], function(err, resp){
+		//type of will be "number"
+		console.log('JSON encoded value of zrange: %s', JSON.stringify(resp));
+	});
+	
+	//SCAN, HSCAN, SSCAN and other *SCAN* commands will return an Array within Array, like this:
+	// [ 245, ['key1', 'key2', 'key3'] ]
+	// first entry (245) - cursor, second one - Array of keys.
+	r.rawCall(['hscan', 'hset:1', 0], function(e, resp){
+		console.log('hscan 0', e, resp);
+	});
+	
+	r.rawCall(['hmset', 'hset:1', 'a', 1, 'b', 2, 'c', 3], function(e, resp){
+		console.log('hmset', e, resp);
+	});
+	
+	r.rawCall(['zadd', 'zset:1', 1, 'a', 2, 'b', 3, 'c', 4, 'd'], function(e, resp){
+		console.log('zset', e, resp);
+	});
+	
+	//HMGET and HGETALL also returns an Array
+	r.rawCall(['hgetall', 'hset:1'], function(e, resp){
+		console.log('HGETALL', e, resp);
+	});
+	
+	r.rawCall(['zrange', 'zset:1', 0, -1], function(e, resp){
+		console.log('ZRANGE', e, resp);
+		//disconnect
+		r.end();
+	});
 
-Results for my MacBook Pro (Retina, 15-inch, Mid 2014) via tcp/ip.
+# Speed
 
-My driver:
+Works MUCH faster then node-redis, 20-50% faster then `ioredis` and even faster then `redis-benchmark` tool.
+
+Results for my MacBook Pro (Retina, 15-inch, Mid 2014, 2.5 GHz Intel Core i7) via tcp/ip.
+
+Redis-fast-driver `node example.js`:
 
 	=================================================
 	===
@@ -97,7 +183,7 @@ My driver:
 	Test complete in 159ms, speed 157232.70 in second, cold down 1.5 sec
 	=================================================
 
-Redis benchmark tool:
+Redis benchmark tool with `-q` flag via tcp/ip on same machine:
 
 	PING_INLINE: 125313.29 requests per second
 	PING_BULK: 125313.29 requests per second
@@ -115,11 +201,125 @@ Redis benchmark tool:
 	LRANGE_600 (first 600 elements): 6799.95 requests per second
 	MSET (10 keys): 87873.46 requests per second
 
-Author
-===
+Mocha test (`npm run bench`) of Redis-fast-driver:
+
+	==========================
+	redis-fast-driver: 1.0.3
+	CPU: 8
+	OS: darwin x64
+	node version: v4.2.3
+	current commit: 0959643
+	==========================
+	
+	Concurrency 10000
+	218,101 op/s » PING
+	190,719 op/s » SET foo bar
+	183,838 op/s » GET foo
+	203,899 op/s » INCR number
+	113,289 op/s » HGETALL hset:1
+	106,666 op/s » ZRANGE zset:1 0 5
+	13,346 op/s » LRANGE list 0 99
+	
+	Concurrency 1000
+	205,586 op/s » PING
+	201,202 op/s » SET foo bar
+	209,195 op/s » GET foo
+	224,303 op/s » INCR number
+	116,750 op/s » HGETALL hset:1
+	110,804 op/s » ZRANGE zset:1 0 5
+	11,680 op/s » LRANGE list 0 99
+	
+	Concurrency 500
+	201,103 op/s » PING
+	153,441 op/s » SET foo bar
+	173,239 op/s » GET foo
+	179,958 op/s » INCR number
+	108,349 op/s » HGETALL hset:1
+	101,903 op/s » ZRANGE zset:1 0 5
+	13,840 op/s » LRANGE list 0 99
+	
+	Concurrency 250
+	195,763 op/s » PING
+	148,687 op/s » SET foo bar
+	166,859 op/s » GET foo
+	169,391 op/s » INCR number
+	93,612 op/s » HGETALL hset:1
+	85,425 op/s » ZRANGE zset:1 0 5
+	13,287 op/s » LRANGE list 0 99
+	
+	Concurrency 100
+	172,089 op/s » PING
+	131,105 op/s » SET foo bar
+	147,579 op/s » GET foo
+	150,110 op/s » INCR number
+	87,084 op/s » HGETALL hset:1
+	82,737 op/s » ZRANGE zset:1 0 5
+	13,079 op/s » LRANGE list 0 99
+	
+	Concurrency 10
+	99,971 op/s » PING
+	96,470 op/s » SET foo bar
+	102,060 op/s » GET foo
+	103,722 op/s » INCR number
+	53,660 op/s » HGETALL hset:1
+	60,193 op/s » ZRANGE zset:1 0 5
+	11,081 op/s » LRANGE list 0 99
+	
+	Concurrency 1
+	23,132 op/s » PING
+	19,633 op/s » SET foo bar
+	22,256 op/s » GET foo
+	21,776 op/s » INCR number
+	15,555 op/s » HGETALL hset:1
+	19,501 op/s » ZRANGE zset:1 0 5
+	7,949 op/s » LRANGE list 0 99
+	
+	Suites:  7
+	Benches: 49
+	Elapsed: 221,065.04 ms
+
+ioredis `npm run bench` on same machine
+
+	==========================
+	redis: 2.0.1
+	CPU: 8
+	OS: darwin x64
+	node version: v4.2.3
+	current commit: 2ac00c8
+	==========================
+	
+	SET foo bar
+	126,941 op/s » javascript parser + dropBufferSupport: true
+	124,539 op/s » javascript parser
+	128,321 op/s » hiredis parser + dropBufferSupport: true
+	111,211 op/s » hiredis parser
+	
+	LRANGE foo 0 99
+	21,243 op/s » javascript parser + dropBufferSupport: true
+	12,675 op/s » javascript parser
+	27,931 op/s » hiredis parser + dropBufferSupport: true
+	5,955 op/s » hiredis parser
+	
+	Suites:  2
+	Benches: 8
+	Elapsed: 60,197.37 ms
+
+# Author
 
 Arseniy Pavlenko h0x91b@gmail.com
 
 Skype: h0x91b
 
 Linkedin: https://il.linkedin.com/in/h0x91b
+
+# Licence
+
+(The MIT License)
+
+Copyright (c) 2015-2016 Arseniy Pavlenko h0x91b@gmail.com
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
