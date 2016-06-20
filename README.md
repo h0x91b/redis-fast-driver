@@ -9,7 +9,7 @@ Also this driver used in https://github.com/joaojeronimo/node_redis_cluster and 
 
 # Installing
 ```
-npm i redis-fast-driver -S
+npm install redis-fast-driver --save
 ```
 
 # Usage
