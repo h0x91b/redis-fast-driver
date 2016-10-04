@@ -6,6 +6,8 @@ function Redis(opts) {
 	var self = this;
 	opts.host = opts.host || '127.0.0.1';
 	opts.port = opts.port || 6379;
+	opts.db = opts.db || 0;
+	opts.auth = opts.auth || false;
 	opts.maxretries = opts.maxretries || 10;
 	this.name = opts.name || 'redis-driver['+opts.host+':'+opts.port+']';
 	this.ready = false;
@@ -33,19 +35,42 @@ function Redis(opts) {
 				return;
 			}
 			self.ready = true;
-			if(self.queue.length > 0){
-				var queue = self.queue;
-				self.queue = [];
-				queue.forEach(function(cmd){
-					self.redis.redisCmd(cmd.args, cmd.cb);
-				});
+			if(opts.auth) {
+				self.redis.redisCmd(['AUTH', opts.auth], function(e){
+					if(e) {
+						self.emit('error', 'Wrong password!');
+						reconnect();
+						return;
+					}
+					if(opts.db > 0) {
+						self.queue.unshift({
+							args: ['SELECT', opts.db],
+							cb: function(e) {
+								if(e)
+									self.emit('error', e);
+							}
+						});
+					}
+					processQueue();
+				})
+			} else {
+				processQueue();
 			}
-			if(!self.readyFirstTime) {
-				self.readyFirstTime = true;
-				self.emit('ready');
+			function processQueue() {
+				if(self.queue.length > 0){
+					var queue = self.queue;
+					self.queue = [];
+					queue.forEach(function(cmd){
+						self.redis.redisCmd(cmd.args, cmd.cb);
+					});
+				}
+				if(!self.readyFirstTime) {
+					self.readyFirstTime = true;
+					self.emit('ready');
+				}
+				self.reconnects = 0;
+				self.emit('connected');
 			}
-			self.reconnects = 0;
-			self.emit('connected');
 		}
 	
 		function onDisconnect(e){

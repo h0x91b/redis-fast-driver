@@ -5,7 +5,9 @@ var r = new Redis({
 	//host: '/tmp/redis.sock', //unix domain
 	host: '127.0.0.1', //can be IP or hostname
 	port: 6379,
-	maxretries: 10 //reconnect retries, default 10
+	maxretries: 10, //reconnect retries, default 10
+	// auth: '123',
+	// db: 5
 });
 
 //happen only once
