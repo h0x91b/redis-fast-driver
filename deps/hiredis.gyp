@@ -9,6 +9,7 @@
       'sources': [
         './hiredis/hiredis.c',
         './hiredis/net.c',
+        './hiredis/read.c',
         './hiredis/sds.c',
         './hiredis/async.c',
       ],
