@@ -42,20 +42,24 @@ function Redis(opts) {
 						reconnect();
 						return;
 					}
-					if(opts.db > 0) {
-						self.queue.unshift({
-							args: ['SELECT', opts.db],
-							cb: function(e) {
-								if(e)
-									self.emit('error', e);
-							}
-						});
-					}
-					processQueue();
+					selectDb();
 				})
 			} else {
-				processQueue();
+				selectDb();
 			}
+			
+			function selectDb() {
+				if(opts.db > 0) {
+					self.redis.redisCmd(['SELECT', opts.db], function(e) {
+						if(e)
+							self.emit('error', e);
+						processQueue();
+					});
+				} else {
+					processQueue();
+				}
+			}
+			
 			function processQueue() {
 				if(self.queue.length > 0){
 					var queue = self.queue;
