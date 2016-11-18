@@ -6,6 +6,8 @@ function Redis(opts) {
 	var self = this;
 	opts.host = opts.host || '127.0.0.1';
 	opts.port = opts.port || 6379;
+	opts.db = opts.db || 0;
+	opts.auth = opts.auth || false;
 	opts.maxretries = opts.maxretries || 10;
 	this.name = opts.name || 'redis-driver['+opts.host+':'+opts.port+']';
 	this.ready = false;
@@ -33,19 +35,49 @@ function Redis(opts) {
 				return;
 			}
 			self.ready = true;
-			if(self.queue.length > 0){
-				var queue = self.queue;
-				self.queue = [];
-				queue.forEach(function(cmd){
-					self.redis.redisCmd(cmd.args, cmd.cb);
-				});
+			if(opts.auth) {
+				self.redis.redisCmd(['AUTH', opts.auth], function(e){
+					if(e) {
+						self.emit('error', 'Wrong password!');
+						reconnect();
+						return;
+					}
+					selectDb();
+				})
+			} else {
+				selectDb();
 			}
-			if(!self.readyFirstTime) {
-				self.readyFirstTime = true;
-				self.emit('ready');
+			
+			function selectDb() {
+				if(opts.db > 0) {
+					self.redis.redisCmd(['SELECT', opts.db], function(e) {
+						if(e) {
+							self.emit('error', e);
+							reconnect();
+							return;
+						}
+						processQueue();
+					});
+				} else {
+					processQueue();
+				}
 			}
-			self.reconnects = 0;
-			self.emit('connected');
+			
+			function processQueue() {
+				if(self.queue.length > 0){
+					var queue = self.queue;
+					self.queue = [];
+					queue.forEach(function(cmd){
+						self.redis.redisCmd(cmd.args, cmd.cb);
+					});
+				}
+				if(!self.readyFirstTime) {
+					self.readyFirstTime = true;
+					self.emit('ready');
+				}
+				self.reconnects = 0;
+				self.emit('connected');
+			}
 		}
 	
 		function onDisconnect(e){
