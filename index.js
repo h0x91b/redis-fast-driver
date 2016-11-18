@@ -51,8 +51,11 @@ function Redis(opts) {
 			function selectDb() {
 				if(opts.db > 0) {
 					self.redis.redisCmd(['SELECT', opts.db], function(e) {
-						if(e)
+						if(e) {
 							self.emit('error', e);
+							reconnect();
+							return;
+						}
 						processQueue();
 					});
 				} else {
