@@ -69,6 +69,15 @@ r.rawCall(['ping'], function(e, resp){
 	console.log('ping', e, resp);
 });
 
+// Also has built-in ES6 Promise support
+r.rawCallAsync(['ping'])
+.then((resp) => {
+	console.log('ping', resp);
+})
+.catch((e) => {
+	console.error(e);
+});
+
 //types are decoded exactly as redis returns it
 //e.g. GET will return string
 r.rawCall(['set', 'number', 123]);

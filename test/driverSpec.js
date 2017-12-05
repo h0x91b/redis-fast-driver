@@ -109,6 +109,11 @@ describe('redis-fast-driver', function() {
       assert(resp === 'PONG');
     });
 
+    it('ping (rawCallAsync)', async function() {
+      const resp = await redis.rawCallAsync(['ping']);
+      assert(resp === 'PONG');
+    });
+
     it('set/get', async function() {
       const set = await rawCall(['set', 'number', 123]);
       assert(set === 'OK');

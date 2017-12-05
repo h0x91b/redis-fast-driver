@@ -151,6 +151,15 @@ class Redis extends EventEmitter {
     return this;
   }
 
+  rawCallAsync(args) {
+    return new Promise((resolve, reject) => {
+      this.rawCall(args, (err, resp) => {
+        if (err) return reject(err);
+        resolve(resp);
+      });
+    });
+  }
+
   end() {
     this.ready = false;
     this.destroyed = true;
