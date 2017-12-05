@@ -26,6 +26,7 @@ class Redis extends EventEmitter {
     this.ready = false;
     this.destroyed = false;
     this.readyFirstTime = false;
+    this.connecting = false;
     this.queue = [];
     this.redis = new redis.RedisConnector();
     this.reconnectTimeoutId = null;
@@ -39,6 +40,7 @@ class Redis extends EventEmitter {
 
   connect() {
     try {
+      this.connecting = true;
       this.redis.connect(this.opts.host, this.opts.port, this.onConnect, this.onDisconnect);
     } catch(e) {
       this.reconnect();
@@ -104,7 +106,14 @@ class Redis extends EventEmitter {
       this.reconnect();
       return;
     }
+    if (this.destroyed) {
+      // end() while we were connecting!
+      this.redis && this.redis.disconnect();
+      return;
+    }
+
     this.ready = true;
+    this.connecting = false;
     this.sendAuth(() => {
       this.selectDb(() => {
         this.processQueue();
@@ -125,13 +134,14 @@ class Redis extends EventEmitter {
       this.emit('error', e);
     }
     this.ready = false;
+    this.connecting = false;
     this.emit('disconnect');
     this.reconnect();
   }
 
   rawCall(args, cb) {
     if(!args || !Array.isArray(args)) {
-      throw new Error('first argument to rawCalll() must be an Array');
+      throw new Error('first argument to rawCall() must be an Array');
     }
 
     if (typeof cb === 'undefined') {
@@ -163,10 +173,14 @@ class Redis extends EventEmitter {
   end() {
     this.ready = false;
     this.destroyed = true;
-    if (this.redis) {
+
+    // If we were once connected, disconnect
+    if (this.redis && this.readyFirstTime) {
       this.redis.disconnect();
-      this.redis = null;
       setImmediate(() => this.emit('disconnect'));
+    }
+    if (!this.connecting) {
+      this.redis = null;
     }
     setImmediate(() => this.emit('end'));
   }

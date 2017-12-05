@@ -93,6 +93,26 @@ describe('redis-fast-driver', function() {
       await endPromise;
     });
 
+    it('Disconnects if ended during connect (potential race condition)', async function() {
+      redis = new Redis({autoConnect: false});
+
+      redis.redis.connect = function(host, port, onConnect, onDisconnect) {
+        setImmediate(onConnect);
+      };
+      let disconnected = false;
+      redis.redis.disconnect = function() {
+        disconnected = true;
+      };
+
+      redis.connect();
+      redis.end();
+      assert(redis.destroyed);
+      assert(disconnected === false);
+      await Promise.delay(0);
+
+      // onConnect() called, realizes destroyed, calls redis.disconnect
+      assert(disconnected === true);
+    });
   });
 
   describe('rawCall', function() {
