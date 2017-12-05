@@ -173,6 +173,7 @@ class Redis extends EventEmitter {
   end() {
     this.ready = false;
     this.destroyed = true;
+    this.queue = null; // prevents possible memleak
 
     // If we were once connected, disconnect
     if (this.redis && this.readyFirstTime) {

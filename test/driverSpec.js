@@ -1,5 +1,5 @@
 'use strict';
-/*eslint no-console: 0*/
+
 const Redis = require('../');
 const Promise = require('bluebird');
 const assert = require('power-assert');
@@ -13,6 +13,9 @@ describe('redis-fast-driver', function() {
 
   function eventPromise(event) {
     return new Promise((resolve) => redis.once(event, resolve));
+  }
+  function rawCall(args) {
+    return Promise.fromCallback((cb) => redis.rawCall(args, cb));
   }
 
   describe('Connecting', function() {
@@ -116,9 +119,6 @@ describe('redis-fast-driver', function() {
   });
 
   describe('rawCall', function() {
-    function rawCall(args) {
-      return Promise.fromCallback((cb) => redis.rawCall(args, cb));
-    }
     beforeEach(async function() {
       redis = new Redis();
       await eventPromise('connect');
@@ -202,4 +202,35 @@ describe('redis-fast-driver', function() {
 
   });
 
+  describe('queueing', function() {
+    beforeEach(async function() {
+      redis = new Redis({autoConnect: false});
+    });
+
+    it('Queues up messages before connect', async function() {
+      const cmds = [['ping'], ['set', 'number', '1'], ['get', 'number']];
+      const promises = cmds.map((cmd) => rawCall(cmd));
+
+      assert(redis.queue.length === cmds.length);
+      cmds.forEach((val, idx) => {
+        assert.deepEqual(redis.queue[idx].args, val);
+      });
+
+      redis.connect();
+      await eventPromise('connect');
+
+      const results = await Promise.all(promises);
+      assert.deepEqual(results, ['PONG', 'OK', '1']);
+      assert(redis.queue.length === 0);
+    });
+
+    it('Releases queue on end', async function() {
+      const cmds = [['ping'], ['set', 'number', '1'], ['get', 'number']];
+      cmds.map((cmd) => rawCall(cmd));
+
+      assert(redis.queue.length === cmds.length);
+      redis.end();
+      assert(redis.queue === null);
+    });
+  });
 });
