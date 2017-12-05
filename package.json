@@ -1,6 +1,6 @@
 {
   "name": "redis-fast-driver",
-  "version": "1.0.5",
+  "version": "2.0.0",
   "description": "Fast truly async driver for redis (based on hiredis async version)",
   "main": "index.js",
   "engines": {
@@ -16,7 +16,10 @@
     "type": "git",
     "url": "https://github.com/h0x91b/redis-fast-driver.git"
   },
-  "author": "Arseniy Pavlenko (h0x91b)",
+  "author": "Arseniy Pavlenko (https://github.com/h0x91b)",
+  "contributors": [
+    "Samuel Reed (https://github.com/strml)"
+  ],
   "license": "MIT",
   "gypfile": true,
   "bugs": {
