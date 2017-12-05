@@ -26,6 +26,7 @@
     "nan": "latest"
   },
   "devDependencies": {
+    "eslint": "^4.12.1",
     "matcha": "^0.7.0"
   }
 }

@@ -1,149 +1,160 @@
-var redis = require('./build/Release/redis-fast-driver');
-var util = require('util');
-var EventEmitter = require('events').EventEmitter;
+const redis = require('./build/Release/redis-fast-driver');
+const EventEmitter = require('events').EventEmitter;
 
-function Redis(opts) {
-	var self = this;
-	opts.host = opts.host || '127.0.0.1';
-	opts.port = opts.port || 6379;
-	opts.db = opts.db || 0;
-	opts.auth = opts.auth || false;
-	opts.maxretries = opts.maxretries || 10;
-	this.name = opts.name || 'redis-driver['+opts.host+':'+opts.port+']';
-	this.ready = false;
-	this.destroyed = false;
-	this.readyFirstTime = false;
-	this.tryToReconnect = opts.tryToReconnect || true;
-	this.queue = [];
-	this.redis = new redis.RedisConnector();
-	this.reconnectTimeout = opts.reconnectTimeout || 1000;
-	this.reconnectTimeoutId = null;
-	this.reconnects = 0;
-	
-	
-	function initialConnect() {
-		try {
-			self.redis.connect(opts.host, opts.port, onConnect, onDisconnect);
-		} catch(e) {
-			reconnect();
-		}
-	
-		function onConnect(e){
-			if(e){
-				self.emit('error', e);
-				reconnect();
-				return;
-			}
-			self.ready = true;
-			if(opts.auth) {
-				self.redis.redisCmd(['AUTH', opts.auth], function(e){
-					if(e) {
-						self.emit('error', 'Wrong password!');
-						reconnect();
-						return;
-					}
-					selectDb();
-				})
-			} else {
-				selectDb();
-			}
-			
-			function selectDb() {
-				if(opts.db > 0) {
-					self.redis.redisCmd(['SELECT', opts.db], function(e) {
-						if(e) {
-							self.emit('error', e);
-							reconnect();
-							return;
-						}
-						processQueue();
-					});
-				} else {
-					processQueue();
-				}
-			}
-			
-			function processQueue() {
-				if(self.queue.length > 0){
-					var queue = self.queue;
-					self.queue = [];
-					queue.forEach(function(cmd){
-						self.redis.redisCmd(cmd.args, cmd.cb);
-					});
-				}
-				if(!self.readyFirstTime) {
-					self.readyFirstTime = true;
-					self.emit('ready');
-				}
-				self.reconnects = 0;
-				self.emit('connected');
-			}
-		}
-	
-		function onDisconnect(e){
-			if(self.destroyed) return;
-			if(e){
-				self.emit('error', e);
-			}
-			self.ready = false;
-			self.emit('disconnected');
-			reconnect();
-		}
-	
-		function reconnect() {
-			if(!self.tryToReconnect || self.reconnects > opts.maxretries) return;
-			self.reconnects++;
-			if(self.reconnectTimeoutId)
-				clearTimeout(self.reconnectTimeoutId);
-			self.reconnectTimeoutId = setTimeout(function(){
-				try {
-					self.redis.connect(opts.host, opts.port, onConnect, onDisconnect);
-				} catch(e) {
-					reconnect();
-				}
-			}, self.reconnectTimeout);
-		}
-	}
-	process.nextTick(initialConnect);
+const defaultOptions = {
+  host: '127.0.0.1',
+  port: 6379,
+  db: 0,
+  auth: false,
+  maxretries: 10,
+  tryToReconnect: true,
+  reconnectTimeout: 1000,
+  autoConnect: true,
+};
+
+class Redis extends EventEmitter {
+  constructor(opts) {
+    super();
+    this.opts = Object.assign({}, defaultOptions, opts);
+    this.init();
+  }
+
+  init() {
+    const {opts} = this;
+    this.name = opts.name || `redis-driver[${opts.host}:${opts.port}]`;
+    this.ready = false;
+    this.destroyed = false;
+    this.readyFirstTime = false;
+    this.queue = [];
+    this.redis = new redis.RedisConnector();
+    this.reconnectTimeoutId = null;
+    this.reconnects = 0;
+    this.onDisconnect = this._onDisconnect.bind(this);
+    this.onConnect = this._onConnect.bind(this);
+
+    if (opts.autoConnect) setImmediate(this.connect.bind(this));
+  }
+
+  connect() {
+    try {
+      this.redis.connect(this.opts.host, this.opts.port, this.onConnect, this.onDisconnect);
+    } catch(e) {
+      this.reconnect();
+    }
+  }
+
+  processQueue() {
+    if (this.queue.length > 0){
+      this.queue.forEach((cmd) => this.redis.redisCmd(cmd.args, cmd.cb));
+      this.queue = [];
+    }
+  }
+
+  reconnect() {
+    const {opts} = this;
+    if (opts.tryToReconnect === false || this.reconnects > opts.maxretries) {
+      this.emit('failed');
+      return;
+    }
+
+    this.reconnects++;
+    if (this.reconnectTimeoutId) clearTimeout(this.reconnectTimeoutId);
+    this.reconnectTimeoutId = setTimeout(this.connect.bind(this), opts.reconnectTimeout);
+  }
+
+  selectDb(cb) {
+    const dbNum = this.opts.db;
+    if (dbNum > 0) {
+      this.redis.redisCmd(['SELECT', dbNum], (e) => {
+        if (e) {
+          this.emit('error', e);
+          this.reconnect();
+          return;
+        }
+        cb();
+      });
+    } else {
+      setImmediate(cb);
+    }
+  }
+
+  sendAuth(cb) {
+    const {auth} = this.opts;
+    if (auth) {
+      this.redis.redisCmd(['AUTH', auth], (e) => {
+        if(e) {
+          this.emit('error', 'Wrong password!');
+          this.reconnect();
+          return;
+        }
+        cb();
+      });
+    } else {
+      setImmediate(cb);
+    }
+  }
+
+  _onConnect(e) {
+    if (e) {
+      this.emit('error', e);
+      this.reconnect();
+      return;
+    }
+    this.ready = true;
+    this.sendAuth(() => {
+      this.selectDb(() => {
+        this.processQueue();
+
+        if (!this.readyFirstTime) {
+          this.readyFirstTime = true;
+          this.emit('ready');
+        }
+        this.reconnects = 0;
+        this.emit('connected');
+      });
+    });
+  }
+
+  _onDisconnect(e) {
+    if (this.destroyed) return;
+    if (e) {
+      this.emit('error', e);
+    }
+    this.ready = false;
+    this.emit('disconnected');
+    this.reconnect();
+  }
+
+  rawCall(args, cb) {
+    if(!args || !Array.isArray(args)) {
+      throw new Error('first argument to rawCalll() must be an Array');
+    }
+
+    if (typeof cb === 'undefined') {
+      cb = (e) => {
+        if (e) this.emit('error', e);
+      };
+    }
+
+    // If not connected, push to queue
+    if (!this.ready) {
+      this.queue.push({args, cb});
+      return this;
+    }
+
+    // Send cmd
+    this.redis.redisCmd(args, cb);
+    return this;
+  }
+
+  end() {
+    this.ready = false;
+    this.destroyed = true;
+    if (this.redis) {
+      this.redis.disconnect();
+      this.redis = null;
+      this.emit('disconnected');
+    }
+  }
 }
-
-util.inherits(Redis, EventEmitter);
-
-Redis.prototype.rawCall = function(args, cb) {
-	var self = this;
-	if(!args || !Array.isArray(args)) {
-		throw 'first argument must be an Array';
-	}
-
-	if(typeof cb === 'undefined') {
-		cb = function(e) {
-		if(e)
-			self.emit('error', e);
-		}
-	}
-	if(!this.ready) {
-		this.queue.push({
-			args: args,
-			cb: cb
-		});
-		return;
-	}
-	if(this.queue.length > 0) {
-		var queue = this.queue;
-		this.queue = [];
-		queue.forEach(function(cmd){
-			self.redis.redisCmd(cmd.args, cmd.cb);
-		});
-	}
-	this.redis.redisCmd(args, cb);
-	return this;
-};
-
-Redis.prototype.end = function() {
-	this.ready = false;
-	if(this.redis) this.redis.disconnect();
-	this.redis = null;
-	this.destroyed = true;
-};
-
 module.exports = Redis;
