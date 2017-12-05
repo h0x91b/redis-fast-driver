@@ -230,7 +230,7 @@ describe('redis-fast-driver', function() {
 
       assert(redis.queue.length === cmds.length);
       redis.end();
-      assert(redis.queue === null);
+      assert.deepEqual(redis.queue, []);
     });
   });
 });

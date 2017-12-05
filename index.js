@@ -140,8 +140,11 @@ class Redis extends EventEmitter {
   }
 
   rawCall(args, cb) {
-    if(!args || !Array.isArray(args)) {
+    if (!args || !Array.isArray(args)) {
       throw new Error('first argument to rawCall() must be an Array');
+    }
+    if (this.destroyed) {
+      throw new Error('rawCall() cannot be called on a destroyed adapter.');
     }
 
     if (typeof cb === 'undefined') {
@@ -173,7 +176,7 @@ class Redis extends EventEmitter {
   end() {
     this.ready = false;
     this.destroyed = true;
-    this.queue = null; // prevents possible memleak
+    this.queue = []; // prevents possible memleak
 
     // If we were once connected, disconnect
     if (this.redis && this.readyFirstTime) {
