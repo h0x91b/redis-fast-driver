@@ -1,3 +1,4 @@
+'use strict';
 const redis = require('./build/Release/redis-fast-driver');
 const EventEmitter = require('events').EventEmitter;
 
@@ -6,7 +7,7 @@ const defaultOptions = {
   port: 6379,
   db: 0,
   auth: false,
-  maxretries: 10,
+  maxRetries: 10,
   tryToReconnect: true,
   reconnectTimeout: 1000,
   autoConnect: true,
@@ -32,6 +33,7 @@ class Redis extends EventEmitter {
     this.onDisconnect = this._onDisconnect.bind(this);
     this.onConnect = this._onConnect.bind(this);
 
+    // When autoConnect is on, give the user a chance to bind event handlers
     if (opts.autoConnect) setImmediate(this.connect.bind(this));
   }
 
@@ -52,12 +54,14 @@ class Redis extends EventEmitter {
 
   reconnect() {
     const {opts} = this;
-    if (opts.tryToReconnect === false || this.reconnects > opts.maxretries) {
-      this.emit('failed');
+    if (opts.tryToReconnect === false || this.reconnects >= opts.maxRetries) {
+      this.emit('error', new Error('Disconnected, exhausted retries.'));
+      this.end();
       return;
     }
 
     this.reconnects++;
+    this.emit('reconnecting', this.reconnects);
     if (this.reconnectTimeoutId) clearTimeout(this.reconnectTimeoutId);
     this.reconnectTimeoutId = setTimeout(this.connect.bind(this), opts.reconnectTimeout);
   }
@@ -83,7 +87,7 @@ class Redis extends EventEmitter {
     if (auth) {
       this.redis.redisCmd(['AUTH', auth], (e) => {
         if(e) {
-          this.emit('error', 'Wrong password!');
+          this.emit('error', new Error('Wrong password!'));
           this.reconnect();
           return;
         }
@@ -110,7 +114,7 @@ class Redis extends EventEmitter {
           this.emit('ready');
         }
         this.reconnects = 0;
-        this.emit('connected');
+        this.emit('connect');
       });
     });
   }
@@ -121,7 +125,7 @@ class Redis extends EventEmitter {
       this.emit('error', e);
     }
     this.ready = false;
-    this.emit('disconnected');
+    this.emit('disconnect');
     this.reconnect();
   }
 
@@ -153,8 +157,9 @@ class Redis extends EventEmitter {
     if (this.redis) {
       this.redis.disconnect();
       this.redis = null;
-      this.emit('disconnected');
+      setImmediate(() => this.emit('disconnect'));
     }
+    setImmediate(() => this.emit('end'));
   }
 }
 module.exports = Redis;

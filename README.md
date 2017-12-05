@@ -16,96 +16,108 @@ npm install redis-fast-driver --save
 
 Check `example*.js` for usage.
 
-	var Redis = require('redis-fast-driver');
-	
-	var r = new Redis({
-		//host: '/tmp/redis.sock', //unix domain
-		host: '127.0.0.1', //can be IP or hostname
-		port: 6379,
-		maxretries: 10, //reconnect retries, default 10
-		auth: '123', //optional password, if needed
-		db: 5, //optional db selection
-	});
-	
-	//happen only once
-	r.on('ready', function(){
-		console.log('redis ready');
-	});
-	
-	//happen each time when reconnected
-	r.on('connected', function(){
-		console.log('redis connected');
-	});
-	
-	r.on('disconnected', function(){
-		console.log('redis disconnected');
-	});
-	
-	r.on('error', function(e){
-		console.log('redis error', e);
-	});
-	
-	//rawCall function has 2 arguments,
-	//1 - array which contain a redis command
-	//2 - optional callback
-	//Redis command is case insesitive, e.g. you can specify HMGET as HMGET, hmget or HmGeT
-	//but keys and value are case sensitive, foo, Foo, FoO not the same...
-	r.rawCall(['set', 'foo', 'bar'], function(err, resp){
-		console.log('SET via rawCall command returns err: %s, resp: %s', err, resp);
-	});
-	
-	r.rawCall(['ping'], function(e, resp){
-		console.log('ping', e, resp);
-	});
+```js
+var Redis = require('redis-fast-driver');
 
-	//types are decoded exactly as redis returns it
-	//e.g. GET will return string
-	r.rawCall(['set', 'number', 123]);
-	r.rawCall(['get', 'number'], function(err, resp){
-		//type of "resp" will be "string"
-		//this is not related to driver this is behaviour of redis...
-		console.log('The value: "%s", number key becomes typeof %s', resp, typeof resp);
-	});
-	
-	//but INCR command on same key will return a number
-	r.rawCall(['incr', 'number'], function(err, resp){
-		//type of "resp" will be a "number"
-		console.log('The value after INCR: "%s", number key becomes typeof %s', resp, typeof resp);
-	});
-	//"number" type will be also on INCRBY ZSCORE HLEN and each other redis command which return a number.
-	
-	//ZRANGE will return an Array, same as redis returns..
-	r.rawCall(['zadd', 'sortedset', 1, 'a', 2, 'b', 3, 'c']);
-	r.rawCall(['zrange', 'sortedset', 0, -1], function(err, resp){
-		//type of will be "number"
-		console.log('JSON encoded value of zrange: %s', JSON.stringify(resp));
-	});
-	
-	//SCAN, HSCAN, SSCAN and other *SCAN* commands will return an Array within Array, like this:
-	// [ 245, ['key1', 'key2', 'key3'] ]
-	// first entry (245) - cursor, second one - Array of keys.
-	r.rawCall(['hscan', 'hset:1', 0], function(e, resp){
-		console.log('hscan 0', e, resp);
-	});
-	
-	r.rawCall(['hmset', 'hset:1', 'a', 1, 'b', 2, 'c', 3], function(e, resp){
-		console.log('hmset', e, resp);
-	});
-	
-	r.rawCall(['zadd', 'zset:1', 1, 'a', 2, 'b', 3, 'c', 4, 'd'], function(e, resp){
-		console.log('zset', e, resp);
-	});
-	
-	//HMGET and HGETALL also returns an Array
-	r.rawCall(['hgetall', 'hset:1'], function(e, resp){
-		console.log('HGETALL', e, resp);
-	});
-	
-	r.rawCall(['zrange', 'zset:1', 0, -1], function(e, resp){
-		console.log('ZRANGE', e, resp);
-		//disconnect
-		r.end();
-	});
+var r = new Redis({
+	//host: '/tmp/redis.sock', //unix domain
+	host: '127.0.0.1', //can be IP or hostname
+	port: 6379,
+	maxRetries: 10, //reconnect retries, default 10
+	auth: '123', //optional password, if needed
+	db: 5, //optional db selection
+	autoConnect: true //will connect after creation
+});
+
+//happen only once
+r.on('ready', function(){
+	console.log('redis ready');
+});
+
+//happen each time when reconnected
+r.on('connect', function(){
+	console.log('redis connected');
+});
+
+r.on('disconnect', function(){
+	console.log('redis disconnected');
+});
+
+r.on('reconnecting', function(num){
+	console.log('redis reconnecting with attempt #' + num);
+});
+
+r.on('error', function(e){
+	console.log('redis error', e);
+});
+
+// called on an explicit end, or exhausted reconnections
+r.on('end', function() {
+	console.log('redis closed');
+});
+
+//rawCall function has 2 arguments,
+//1 - array which contain a redis command
+//2 - optional callback
+//Redis command is case insesitive, e.g. you can specify HMGET as HMGET, hmget or HmGeT
+//but keys and value are case sensitive, foo, Foo, FoO not the same...
+r.rawCall(['set', 'foo', 'bar'], function(err, resp){
+	console.log('SET via rawCall command returns err: %s, resp: %s', err, resp);
+});
+
+r.rawCall(['ping'], function(e, resp){
+	console.log('ping', e, resp);
+});
+
+//types are decoded exactly as redis returns it
+//e.g. GET will return string
+r.rawCall(['set', 'number', 123]);
+r.rawCall(['get', 'number'], function(err, resp){
+	//type of "resp" will be "string"
+	//this is not related to driver this is behaviour of redis...
+	console.log('The value: "%s", number key becomes typeof %s', resp, typeof resp);
+});
+
+//but INCR command on same key will return a number
+r.rawCall(['incr', 'number'], function(err, resp){
+	//type of "resp" will be a "number"
+	console.log('The value after INCR: "%s", number key becomes typeof %s', resp, typeof resp);
+});
+//"number" type will be also on INCRBY ZSCORE HLEN and each other redis command which return a number.
+
+//ZRANGE will return an Array, same as redis returns..
+r.rawCall(['zadd', 'sortedset', 1, 'a', 2, 'b', 3, 'c']);
+r.rawCall(['zrange', 'sortedset', 0, -1], function(err, resp){
+	//type of will be "number"
+	console.log('JSON encoded value of zrange: %s', JSON.stringify(resp));
+});
+
+//SCAN, HSCAN, SSCAN and other *SCAN* commands will return an Array within Array, like this:
+// [ 245, ['key1', 'key2', 'key3'] ]
+// first entry (245) - cursor, second one - Array of keys.
+r.rawCall(['hscan', 'hset:1', 0], function(e, resp){
+	console.log('hscan 0', e, resp);
+});
+
+r.rawCall(['hmset', 'hset:1', 'a', 1, 'b', 2, 'c', 3], function(e, resp){
+	console.log('hmset', e, resp);
+});
+
+r.rawCall(['zadd', 'zset:1', 1, 'a', 2, 'b', 3, 'c', 4, 'd'], function(e, resp){
+	console.log('zset', e, resp);
+});
+
+//HMGET and HGETALL also returns an Array
+r.rawCall(['hgetall', 'hset:1'], function(e, resp){
+	console.log('HGETALL', e, resp);
+});
+
+r.rawCall(['zrange', 'zset:1', 0, -1], function(e, resp){
+	console.log('ZRANGE', e, resp);
+	//disconnect
+	r.end();
+});
+````
 
 # Speed
 
@@ -217,7 +229,7 @@ Mocha test (`npm run bench`) of Redis-fast-driver:
 	node version: v4.2.3
 	current commit: 0959643
 	==========================
-	
+
 	Concurrency 10000
 	218,101 op/s » PING
 	190,719 op/s » SET foo bar
@@ -226,7 +238,7 @@ Mocha test (`npm run bench`) of Redis-fast-driver:
 	113,289 op/s » HGETALL hset:1
 	106,666 op/s » ZRANGE zset:1 0 5
 	13,346 op/s » LRANGE list 0 99
-	
+
 	Concurrency 1000
 	205,586 op/s » PING
 	201,202 op/s » SET foo bar
@@ -235,7 +247,7 @@ Mocha test (`npm run bench`) of Redis-fast-driver:
 	116,750 op/s » HGETALL hset:1
 	110,804 op/s » ZRANGE zset:1 0 5
 	11,680 op/s » LRANGE list 0 99
-	
+
 	Concurrency 500
 	201,103 op/s » PING
 	153,441 op/s » SET foo bar
@@ -244,7 +256,7 @@ Mocha test (`npm run bench`) of Redis-fast-driver:
 	108,349 op/s » HGETALL hset:1
 	101,903 op/s » ZRANGE zset:1 0 5
 	13,840 op/s » LRANGE list 0 99
-	
+
 	Concurrency 250
 	195,763 op/s » PING
 	148,687 op/s » SET foo bar
@@ -253,7 +265,7 @@ Mocha test (`npm run bench`) of Redis-fast-driver:
 	93,612 op/s » HGETALL hset:1
 	85,425 op/s » ZRANGE zset:1 0 5
 	13,287 op/s » LRANGE list 0 99
-	
+
 	Concurrency 100
 	172,089 op/s » PING
 	131,105 op/s » SET foo bar
@@ -262,7 +274,7 @@ Mocha test (`npm run bench`) of Redis-fast-driver:
 	87,084 op/s » HGETALL hset:1
 	82,737 op/s » ZRANGE zset:1 0 5
 	13,079 op/s » LRANGE list 0 99
-	
+
 	Concurrency 10
 	99,971 op/s » PING
 	96,470 op/s » SET foo bar
@@ -271,7 +283,7 @@ Mocha test (`npm run bench`) of Redis-fast-driver:
 	53,660 op/s » HGETALL hset:1
 	60,193 op/s » ZRANGE zset:1 0 5
 	11,081 op/s » LRANGE list 0 99
-	
+
 	Concurrency 1
 	23,132 op/s » PING
 	19,633 op/s » SET foo bar
@@ -280,7 +292,7 @@ Mocha test (`npm run bench`) of Redis-fast-driver:
 	15,555 op/s » HGETALL hset:1
 	19,501 op/s » ZRANGE zset:1 0 5
 	7,949 op/s » LRANGE list 0 99
-	
+
 	Suites:  7
 	Benches: 49
 	Elapsed: 221,065.04 ms
@@ -294,19 +306,19 @@ ioredis `npm run bench` on same machine
 	node version: v4.2.3
 	current commit: 2ac00c8
 	==========================
-	
+
 	SET foo bar
 	126,941 op/s » javascript parser + dropBufferSupport: true
 	124,539 op/s » javascript parser
 	128,321 op/s » hiredis parser + dropBufferSupport: true
 	111,211 op/s » hiredis parser
-	
+
 	LRANGE foo 0 99
 	21,243 op/s » javascript parser + dropBufferSupport: true
 	12,675 op/s » javascript parser
 	27,931 op/s » hiredis parser + dropBufferSupport: true
 	5,955 op/s » hiredis parser
-	
+
 	Suites:  2
 	Benches: 8
 	Elapsed: 60,197.37 ms
