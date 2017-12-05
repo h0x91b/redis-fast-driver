@@ -1,0 +1,12 @@
+{
+  rules: {
+    "no-console": 0
+  },
+  globals: {
+    set: true,
+    bench: true,
+    suite: true,
+    before: true,
+    after: true,
+  }
+}

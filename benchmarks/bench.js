@@ -77,5 +77,5 @@ concurrents.forEach((num) => {
     });
 
     after(quit);
-  })
+  });
 });

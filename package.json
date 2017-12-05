@@ -9,7 +9,8 @@
   "scripts": {
     "test": "mocha --require intelli-espower-loader test/*.js",
     "install": "node-gyp rebuild",
-    "bench": "matcha benchmarks/*.js"
+    "bench": "matcha benchmarks/*.js",
+    "lint": "eslint ."
   },
   "repository": {
     "type": "git",
