@@ -272,19 +272,18 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	uint32_t callback_id = self->callback_id++;
 	Nan::New(self->callbacks)->Set(Nan::New<Number>(callback_id), cb);
 	
-processargs:
 	for(uint32_t i=0;i<arraylen;i++) {
 		String::Utf8Value str(array->Get(i));
 		uint32_t len = str.length();
 		while(bufused + len > bufsize) {
-			//double buf size
-			char *oldbuf = buf;
-			bufsize *= 2;
-			buf = (char*)malloc(bufsize);
-			memcpy(buf, oldbuf, bufused);
-			free(oldbuf);
+			//increase buf size
+			// LOG("bufsize is not big enough, current: %llu ", bufsize);
+			bufsize = ((bufused + len) / 256 + 1) * 256;
+			// LOG("increase it to %llu\n", bufsize);
+			buf = (char*)realloc(buf, bufsize);
 			bufused = 0;
-			goto processargs;
+			i = 0;
+			break;
 		}
 		argv[i] = buf + bufused;
 		memcpy(buf+bufused, *str, len);
