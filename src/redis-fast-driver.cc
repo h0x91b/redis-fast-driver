@@ -16,7 +16,7 @@ NODE_MODULE(redis_fast_driver, init)
 
 Nan::Persistent<Function> RedisConnector::constructor;
 
-RedisConnector::RedisConnector(double value) : value_(value) {
+RedisConnector::RedisConnector() {
 	LOG("%s\n", __PRETTY_FUNCTION__);
 	callbacks.Reset(Nan::New<Object>());
 	callback_id = 1;
@@ -44,16 +44,13 @@ NAN_METHOD(RedisConnector::New) {
 
 	if (info.IsConstructCall()) {
 		// Invoked as constructor: `new RedisConnector(...)`
-		double value = info[0]->IsUndefined() ? 0 : info[0]->NumberValue();
-		RedisConnector* obj = new RedisConnector(value);
+		RedisConnector* obj = new RedisConnector();
 		obj->Wrap(info.This());
 		info.This()->Set(Nan::New<String>("callbacks").ToLocalChecked(), Nan::New(obj->callbacks));
 		info.GetReturnValue().Set(info.This());
 	} else {
 		// Invoked as plain function `RedisConnector(...)`, turn into construct call.
-		const int argc = 1;
-		Local<Value> argv[argc] = { info[0] };
-		info.GetReturnValue().Set(Nan::New(constructor)->NewInstance(argc, argv));
+		Nan::ThrowError("This function must be called as a constructor (e.g. new RedisConnector())");
 	}
 }
 
@@ -112,7 +109,7 @@ NAN_METHOD(RedisConnector::Connect) {
 	LOG("%s\n", __PRETTY_FUNCTION__);
 	Nan::HandleScope scope;
 	if(info.Length() != 4) {
-		Nan::ThrowTypeError("Wrong arguments count");
+		Nan::ThrowError("Wrong arguments count");
 		info.GetReturnValue().Set(Nan::Undefined());
 	}
 	RedisConnector* self = ObjectWrap::Unwrap<RedisConnector>(info.This());
@@ -178,7 +175,7 @@ Local<Value> parseResponse(redisReply *reply, size_t* size) {
 		break;
 	default:
 		printf("Redis rotocol error, unknown type %d\n", reply->type);
-		Nan::ThrowTypeError("Protocol error, unknown type");
+		Nan::ThrowError("Protocol error, unknown type");
 		return Nan::Undefined();
 	}
 	
@@ -255,7 +252,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	size_t bufused = 0;
 	Nan::HandleScope scope;
 	if(info.Length() != 2) {
-		Nan::ThrowTypeError("Wrong arguments count");
+		Nan::ThrowError("Wrong arguments count");
 		info.GetReturnValue().Set(Nan::Undefined());
 	}
 	RedisConnector* self = ObjectWrap::Unwrap<RedisConnector>(info.This());

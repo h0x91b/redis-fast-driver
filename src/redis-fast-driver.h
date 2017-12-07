@@ -23,11 +23,10 @@ public:
 	Nan::Persistent<v8::Function> setImmediate;
 	Nan::Persistent<v8::Object> callbacks;
 	uint32_t callback_id;
-	double value_;
 	bool is_connected;
 
 private:
-	explicit RedisConnector(double value = 0);
+	explicit RedisConnector();
 	~RedisConnector();
 
 	static NAN_METHOD(New);
