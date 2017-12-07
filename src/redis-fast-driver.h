@@ -11,6 +11,7 @@
 
 #include <node.h>
 #include <stdlib.h>
+#include <unordered_map>
 #include "../deps/hiredis/async.h"
 #include "../deps/hiredis/hiredis.h"
 #include "../deps/hiredis/adapters/libuv.h"
@@ -21,7 +22,7 @@ public:
 	Nan::Persistent<v8::Function> connectCb;
 	Nan::Persistent<v8::Function> disconnectCb;
 	Nan::Persistent<v8::Function> setImmediate;
-	Nan::Persistent<v8::Object> callbacks;
+	std::unordered_map< uint32_t, v8::Persistent<v8::Function> > callbacksMap;
 	uint32_t callback_id;
 	bool is_connected;
 

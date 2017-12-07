@@ -18,7 +18,6 @@ Nan::Persistent<Function> RedisConnector::constructor;
 
 RedisConnector::RedisConnector() {
 	LOG("%s\n", __PRETTY_FUNCTION__);
-	callbacks.Reset(Nan::New<Object>());
 	callback_id = 1;
 }
 
@@ -46,7 +45,6 @@ NAN_METHOD(RedisConnector::New) {
 		// Invoked as constructor: `new RedisConnector(...)`
 		RedisConnector* obj = new RedisConnector();
 		obj->Wrap(info.This());
-		info.This()->Set(Nan::New<String>("callbacks").ToLocalChecked(), Nan::New(obj->callbacks));
 		info.GetReturnValue().Set(info.This());
 	} else {
 		// Invoked as plain function `RedisConnector(...)`, turn into construct call.
@@ -190,12 +188,13 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 	uint32_t callback_id = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(privdata));
 	if (reply == NULL) return;
 	RedisConnector *self = (RedisConnector*)c->data;
-	Local<Function> jsCallback = Local<Function>::Cast(Nan::New(self->callbacks)->Get(Nan::New(callback_id)));
+	Local<Function> jsCallback = Nan::New(self->callbacksMap[callback_id]);
 	Nan::Callback cb(jsCallback);
 	Local<Function> setImmediate = Nan::New(self->setImmediate);
 	if(!(c->c.flags & REDIS_SUBSCRIBED || c->c.flags & REDIS_MONITORING)) {
 		// LOG("delete, flags %i id %i\n", c->c.flags, callback_id);
-		Nan::New<v8::Object>(self->callbacks)->Delete(Nan::New(callback_id)->ToString());
+		self->callbacksMap[callback_id].Reset();
+		self->callbacksMap.erase(callback_id);
 	} else {
 		// LOG("flags %i id %i\n", c->c.flags, callback_id);
 	}
@@ -269,8 +268,6 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 		argvlen = (size_t*)malloc(argvroom * sizeof(size_t*));
 		argv = (char**)malloc(argvroom * sizeof(char*));
 	}
-	uint32_t callback_id = self->callback_id++;
-	Nan::New(self->callbacks)->Set(Nan::New<Number>(callback_id), cb);
 	
 	for(uint32_t i=0;i<arraylen;i++) {
 		String::Utf8Value str(array->Get(i));
@@ -291,6 +288,18 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 		argvlen[i] = len;
 		//LOG("add \"%s\" len: %d\n", argv[i], argvlen[i]);
 	}
-	redisAsyncCommandArgv(self->c, getCallback, (void*)(intptr_t)callback_id, arraylen, (const char**)argv, (const size_t*)argvlen);
+	
+	uint32_t callback_id = self->callback_id++;
+	Isolate* isolate = Isolate::GetCurrent();
+	self->callbacksMap[callback_id].Reset(isolate, Local<Function>::Cast(info[1]));
+	
+	redisAsyncCommandArgv(
+		self->c, 
+		getCallback,
+		(void*)(intptr_t)callback_id,
+		arraylen,
+		(const char**)argv,
+		(const size_t*)argvlen
+	);
 	info.GetReturnValue().Set(Nan::Undefined());
 }
