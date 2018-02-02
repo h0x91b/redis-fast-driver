@@ -212,7 +212,6 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 		return;
 	}
 	Local<Value> resp = parseResponse(reply, &totalSize);
-	// printf("Total size %lu\n", totalSize);
 	if( resp->IsUndefined() ) {
 		Local<Value> argv[4] = {
 			jsCallback,
@@ -261,7 +260,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	//Persistent<Function> cb = Persistent<Function>::New(Local<Function>::Cast(args[1]));
 	size_t arraylen = array->Length();
 	while(arraylen > argvroom) {
-		// printf("double room for argv %zu\n", argvroom);
+		// LOG("double room for argv %zu\n", argvroom);
 		argvroom *= 2;
 		free(argvlen);
 		free(argv);
@@ -272,7 +271,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	for(uint32_t i=0;i<arraylen;i++) {
 		String::Utf8Value str(array->Get(i));
 		uint32_t len = str.length();
-		while(bufused + len > bufsize) {
+		if(bufused + len > bufsize) {
 			//increase buf size
 			// LOG("bufsize is not big enough, current: %llu ", bufsize);
 			bufsize = ((bufused + len) / 256 + 1) * 256;
@@ -280,7 +279,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 			buf = (char*)realloc(buf, bufsize);
 			bufused = 0;
 			i = 0;
-			break;
+			continue;
 		}
 		argv[i] = buf + bufused;
 		memcpy(buf+bufused, *str, len);
