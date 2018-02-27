@@ -1,6 +1,7 @@
 'use strict';
 const redis = require('./build/Release/redis-fast-driver');
 const EventEmitter = require('events').EventEmitter;
+const os = require('os');
 
 const defaultOptions = {
   host: '127.0.0.1',
@@ -11,6 +12,7 @@ const defaultOptions = {
   tryToReconnect: true,
   reconnectTimeout: 1000,
   autoConnect: true,
+  doNotSetClientName: false
 };
 
 class Redis extends EventEmitter {
@@ -116,6 +118,9 @@ class Redis extends EventEmitter {
     this.connecting = false;
     this.sendAuth(() => {
       this.selectDb(() => {
+        if(!this.opts.doNotSetClientName) {
+          this.rawCall(['CLIENT', 'SETNAME', 'redis-fast-driver['+os.hostname()+':PID-'+process.pid+']']);
+        }
         this.processQueue();
 
         if (!this.readyFirstTime) {

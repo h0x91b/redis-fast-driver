@@ -27,6 +27,7 @@ var r = new Redis({
 	auth: '123', //optional password, if needed
 	db: 5, //optional db selection
 	autoConnect: true //will connect after creation
+	doNotSetClientName: false //will set connection name (you can see connections by running CLIENT LIST on redis server)
 });
 
 //happen only once
