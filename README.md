@@ -7,6 +7,8 @@ This node module uses hiredis async library for connection and for parsing writt
 All redis commands including PUB/SUB and MONITOR works fine, this driver 2 years on my production enviroment under really high load (30k ops/sec each redis in cluster).
 Also this driver used in https://github.com/joaojeronimo/node_redis_cluster and in my fork https://github.com/h0x91b/fast-redis-cluster
 
+[![Build Status](https://travis-ci.org/h0x91b/redis-fast-driver.svg?branch=master)](https://travis-ci.org/h0x91b/redis-fast-driver)
+
 # Installing
 ```
 npm install redis-fast-driver --save
