@@ -52,7 +52,7 @@ NAN_METHOD(RedisConnector::New) {
 	}
 }
 
-void RedisConnector::connectCallback(const redisAsyncContext *c, int status) {
+void RedisConnector::ConnectCallback(const redisAsyncContext *c, int status) {
 	LOG("%s\n", __PRETTY_FUNCTION__);
 	Nan::HandleScope scope;
 	RedisConnector *self = (RedisConnector*)c->data;
@@ -72,7 +72,7 @@ void RedisConnector::connectCallback(const redisAsyncContext *c, int status) {
 	Nan::New(self->connectCb)->Call(Nan::GetCurrentContext()->Global(), 1, argv);
 }
 
-void RedisConnector::disconnectCallback(const redisAsyncContext *c, int status) {
+void RedisConnector::DisconnectCallback(const redisAsyncContext *c, int status) {
 	LOG("%s\n", __PRETTY_FUNCTION__);
 	Nan::HandleScope scope;
 	RedisConnector *self = (RedisConnector*)c->data;
@@ -140,13 +140,13 @@ NAN_METHOD(RedisConnector::Connect) {
 	uv_loop_t* loop = uv_default_loop();
 	self->c->data = (void*)self;
 	redisLibuvAttach(self->c,loop);
-	redisAsyncSetConnectCallback(self->c,connectCallback);
-	redisAsyncSetDisconnectCallback(self->c,disconnectCallback);
+	redisAsyncSetConnectCallback(self->c,ConnectCallback);
+	redisAsyncSetDisconnectCallback(self->c,DisconnectCallback);
 	
 	info.GetReturnValue().Set(Nan::Undefined());
 }
 
-Local<Value> parseResponse(redisReply *reply, size_t* size) {
+Local<Value> ParseResponse(redisReply *reply, size_t* size) {
 	Nan::EscapableHandleScope scope;
 	Local<Value> resp;
 	Local<Array> arr = Nan::New<Array>();
@@ -167,7 +167,7 @@ Local<Value> parseResponse(redisReply *reply, size_t* size) {
 		break;
 	case REDIS_REPLY_ARRAY:
 		for (size_t i=0; i<reply->elements; i++) {
-			arr->Set(Nan::New<Number>(i), parseResponse(reply->element[i], size));
+			arr->Set(Nan::New<Number>(i), ParseResponse(reply->element[i], size));
 		}
 		resp = arr;
 		break;
@@ -180,7 +180,7 @@ Local<Value> parseResponse(redisReply *reply, size_t* size) {
 	return scope.Escape(resp);
 }
 
-void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) {
+void RedisConnector::OnRedisResponse(redisAsyncContext *c, void *r, void *privdata) {
 	Nan::HandleScope scope;
 	size_t totalSize = 0;
 	//LOG("%s\n", __PRETTY_FUNCTION__);
@@ -211,7 +211,7 @@ void RedisConnector::getCallback(redisAsyncContext *c, void *r, void *privdata) 
 		setImmediate->Call(Nan::GetCurrentContext()->Global(), 4, argv);
 		return;
 	}
-	Local<Value> resp = parseResponse(reply, &totalSize);
+	Local<Value> resp = ParseResponse(reply, &totalSize);
 	if( resp->IsUndefined() ) {
 		Local<Value> argv[4] = {
 			jsCallback,
@@ -256,7 +256,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	RedisConnector* self = ObjectWrap::Unwrap<RedisConnector>(info.This());
 	
 	Local<Array> array = Local<Array>::Cast(info[0]);
-	Local<Function> cb = Local<Function>::Cast(info[1]);
+	// Local<Function> cb = Local<Function>::Cast(info[1]);
 	//Persistent<Function> cb = Persistent<Function>::New(Local<Function>::Cast(args[1]));
 	size_t arraylen = array->Length();
 	while(arraylen > argvroom) {
@@ -294,7 +294,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	
 	redisAsyncCommandArgv(
 		self->c, 
-		getCallback,
+		OnRedisResponse,
 		(void*)(intptr_t)callback_id,
 		arraylen,
 		(const char**)argv,

@@ -34,9 +34,9 @@ private:
 	static NAN_METHOD(Connect);
 	static NAN_METHOD(Disconnect);
 	static NAN_METHOD(RedisCmd);
-	static void connectCallback(const redisAsyncContext *c, int status);
-	static void disconnectCallback(const redisAsyncContext *c, int status);
-	static void getCallback(redisAsyncContext *c, void *r, void *privdata);
+	static void ConnectCallback(const redisAsyncContext *c, int status);
+	static void DisconnectCallback(const redisAsyncContext *c, int status);
+	static void OnRedisResponse(redisAsyncContext *c, void *r, void *privdata);
 	static Nan::Persistent<v8::Function> constructor;
 	redisAsyncContext *c;
 };
