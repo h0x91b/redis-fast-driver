@@ -49,7 +49,10 @@ describe('redis-fast-driver', function() {
     });
 
     it('Can be destroyed and revived', async function() {
-      redis = new Redis();
+      redis = new Redis({
+        doNotRunQuitOnEnd: true,
+        doNotSetClientName: true,
+      });
       await eventPromise('ready');
 
       redis.end();
@@ -161,15 +164,20 @@ describe('redis-fast-driver', function() {
       const zrange = await rawCall(['zrange', key, 0, -1]);
       assert.deepEqual(zrange, ['a', 'b', 'c']);
     });
+    
+    it('del hset:1', async function() {
+      await rawCall(['del', 'hset:1']);
+      assert(1 === 1)
+    });
+    
+    it('hmset', async function() {
+      const hmset = await rawCall(['hmset', 'hset:1', 'a', 1, 'b', 2, 'c', 3]);
+      assert(hmset === 'OK');
+    });
 
     it('hscan', async function() {
       const hscan = await rawCall(['hscan', 'hset:1', 0]);
       assert.deepEqual(hscan, ['0', ['a', '1', 'b', '2', 'c', '3']]);
-    });
-
-    it('hmset', async function() {
-      const hmset = await rawCall(['hmset', 'hset:1', 'a', 1, 'b', 2, 'c', 3]);
-      assert(hmset === 'OK');
     });
 
     it('hgetall', async function() {
