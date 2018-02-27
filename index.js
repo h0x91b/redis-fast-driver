@@ -174,6 +174,7 @@ class Redis extends EventEmitter {
   }
 
   end() {
+    this.rawCall(['QUIT']);
     this.ready = false;
     this.destroyed = true;
     this.queue = []; // prevents possible memleak
