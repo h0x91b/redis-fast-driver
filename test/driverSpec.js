@@ -167,7 +167,7 @@ describe('redis-fast-driver', function() {
     
     it('del hset:1', async function() {
       await rawCall(['del', 'hset:1']);
-      assert(1 === 1)
+      assert(1 === 1);
     });
     
     it('hmset', async function() {
