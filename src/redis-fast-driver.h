@@ -11,6 +11,7 @@
 
 #include <node.h>
 #include <stdlib.h>
+#include <unordered_map>
 #include "../deps/hiredis/async.h"
 #include "../deps/hiredis/hiredis.h"
 #include "../deps/hiredis/adapters/libuv.h"
@@ -21,22 +22,21 @@ public:
 	Nan::Persistent<v8::Function> connectCb;
 	Nan::Persistent<v8::Function> disconnectCb;
 	Nan::Persistent<v8::Function> setImmediate;
-	Nan::Persistent<v8::Object> callbacks;
+	std::unordered_map< uint32_t, v8::Persistent<v8::Function> > callbacksMap;
 	uint32_t callback_id;
-	double value_;
 	bool is_connected;
 
 private:
-	explicit RedisConnector(double value = 0);
+	explicit RedisConnector();
 	~RedisConnector();
 
 	static NAN_METHOD(New);
 	static NAN_METHOD(Connect);
 	static NAN_METHOD(Disconnect);
 	static NAN_METHOD(RedisCmd);
-	static void connectCallback(const redisAsyncContext *c, int status);
-	static void disconnectCallback(const redisAsyncContext *c, int status);
-	static void getCallback(redisAsyncContext *c, void *r, void *privdata);
+	static void ConnectCallback(const redisAsyncContext *c, int status);
+	static void DisconnectCallback(const redisAsyncContext *c, int status);
+	static void OnRedisResponse(redisAsyncContext *c, void *r, void *privdata);
 	static Nan::Persistent<v8::Function> constructor;
 	redisAsyncContext *c;
 };
