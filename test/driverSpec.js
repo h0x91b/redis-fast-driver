@@ -66,7 +66,12 @@ describe('redis-fast-driver', function() {
 
     it('Reconnects, and emits "end" at limit', async function() {
       const maxRetries = 10;
-      redis = new Redis({maxRetries, reconnectTimeout: 0});
+      redis = new Redis({
+        maxRetries,
+        reconnectTimeout: 0,
+        doNotSetClientName: true,
+        doNotRunQuitOnEnd: true
+      });
       // redis.on('connect', () => console.log('connect'));
       // redis.on('reconnecting', (num) => console.log('reconn', num));
       // redis.on('disconnect', () => console.log('disconnect'));
@@ -97,7 +102,10 @@ describe('redis-fast-driver', function() {
     });
 
     it('Disconnects if ended during connect (potential race condition)', async function() {
-      redis = new Redis({autoConnect: false});
+      redis = new Redis({autoConnect: false,
+        doNotSetClientName: true,
+        doNotRunQuitOnEnd: true
+      });
 
       redis.redis.connect = function(host, port, onConnect, onDisconnect) {
         setImmediate(onConnect);
@@ -147,9 +155,10 @@ describe('redis-fast-driver', function() {
     });
 
     it('zrange', async function() {
-      const zadd = await rawCall(['zadd', 'sortedset', 1, 'a', 2, 'b', 3, 'c']);
-      assert(zadd === 0);
-      const zrange = await rawCall(['zrange', 'sortedset', 0, -1]);
+      const key = 'sortedset'+new Date;
+      const zadd = await rawCall(['zadd', key, 1, 'a', 2, 'b', 3, 'c']);
+      assert(zadd === 3);
+      const zrange = await rawCall(['zrange', key, 0, -1]);
       assert.deepEqual(zrange, ['a', 'b', 'c']);
     });
 
@@ -167,10 +176,15 @@ describe('redis-fast-driver', function() {
       const hgetall = await rawCall(['hgetall', 'hset:1']);
       assert.deepEqual(hgetall, ['a', '1', 'b', '2', 'c', '3']);
     });
+    
+    it('del zset', async function() {
+      const zadd = await rawCall(['del', 'zset:1']);
+      assert(1 === 1);
+    });
 
     it('zadd', async function() {
-      const zadd = await rawCall(['zadd', 'zset:1', 1, 'a', 2, 'b', 3, 'c', 4, 'd']);
-      assert(zadd === 0);
+      const zadd = await rawCall(['zadd', 'zset:1', 1, 'a', 2, 'b', 3, 'c', 4, 'd', 5, 'e']);
+      assert(zadd === 5);
     });
 
     it('zrange', async function() {
@@ -204,7 +218,11 @@ describe('redis-fast-driver', function() {
 
   describe('queueing', function() {
     beforeEach(async function() {
-      redis = new Redis({autoConnect: false});
+      redis = new Redis({
+        autoConnect: false,
+        doNotSetClientName: true,
+        doNotRunQuitOnEnd: true
+      });
     });
 
     it('Queues up messages before connect', async function() {

@@ -12,7 +12,8 @@ const defaultOptions = {
   tryToReconnect: true,
   reconnectTimeout: 1000,
   autoConnect: true,
-  doNotSetClientName: false
+  doNotSetClientName: false,
+  doNotRunQuitOnEnd: false
 };
 
 class Redis extends EventEmitter {
@@ -179,7 +180,9 @@ class Redis extends EventEmitter {
   }
 
   end() {
-    this.rawCall(['QUIT']);
+    if(!this.opts.doNotRunQuitOnEnd) {
+      this.rawCall(['QUIT']);
+    }
     this.ready = false;
     this.destroyed = true;
     this.queue = []; // prevents possible memleak

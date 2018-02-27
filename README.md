@@ -26,8 +26,9 @@ var r = new Redis({
 	maxRetries: 10, //reconnect retries, default 10
 	auth: '123', //optional password, if needed
 	db: 5, //optional db selection
-	autoConnect: true //will connect after creation
-	doNotSetClientName: false //will set connection name (you can see connections by running CLIENT LIST on redis server)
+	autoConnect: true, //will connect after creation
+	doNotSetClientName: false, //will set connection name (you can see connections by running CLIENT LIST on redis server)
+	doNotRunQuitOnEnd: false, //when you call `end()`, driver tries to send `QUIT` command to redis before actual end
 });
 
 //happen only once
