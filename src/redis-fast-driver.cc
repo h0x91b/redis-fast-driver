@@ -271,11 +271,16 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	for(uint32_t i=0;i<arraylen;i++) {
 		String::Utf8Value str(array->Get(i));
 		uint32_t len = str.length();
+		//LOG("i %u\n", i);
+		//LOG("str: \"%s\"\n", *str);
+		//LOG("len %u\n", len);
+		//LOG("bufused %zu\n", bufused);
 		if(bufused + len > bufsize) {
 			//increase buf size
-			// LOG("bufsize is not big enough, current: %llu ", bufsize);
+			//LOG("buf needed %zu\n", bufused + len);
+			//LOG("bufsize is not big enough, current: %zu ", bufsize);
 			bufsize = ((bufused + len) / 256 + 1) * 256;
-			// LOG("increase it to %llu\n", bufsize);
+			//LOG("increase it to %zu\n", bufsize);
 			buf = (char*)realloc(buf, bufsize);
 			bufused = 0;
 			i = -1;
@@ -285,9 +290,10 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 		memcpy(buf+bufused, *str, len);
 		bufused += len;
 		argvlen[i] = len;
-		//LOG("add \"%s\" len: %d\n", argv[i], argvlen[i]);
+		//LOG("added \"%.*s\" len: %zu\n", int(argvlen[i]), argv[i], argvlen[i]);
 	}
 	
+	//LOG("command buffer filled with: \"%.*s\"\n", int(bufused), argv[0]);
 	uint32_t callback_id = self->callback_id++;
 	Isolate* isolate = Isolate::GetCurrent();
 	self->callbacksMap[callback_id].Reset(isolate, Local<Function>::Cast(info[1]));
