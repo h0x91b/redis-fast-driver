@@ -279,7 +279,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 			//increase buf size
 			//LOG("buf needed %zu\n", bufused + len);
 			//LOG("bufsize is not big enough, current: %zu ", bufsize);
-			bufsize = ((bufused + len) / 256 + 1) * 256;
+			bufsize = bufsize * 2;
 			//LOG("increase it to %zu\n", bufsize);
 			buf = (char*)realloc(buf, bufsize);
 			//try the smae index again
