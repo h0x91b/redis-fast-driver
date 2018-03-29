@@ -200,33 +200,25 @@ describe('redis-fast-driver', function() {
       assert.deepEqual(zrange, ['a', 'b', 'c', 'd', 'e']);
     });
 
-    it('works correctly when command buffer needs to be resized', async function() {
+    it('works correctly when send buffer needs to be resized', async function() {
       // This should be the same as RFD_COMMAND_BUFFER_SIZE defined in
       // redis-fast-driver.h
       const commandBufferSize = 4096;
-      const expectedResult = [];
-      const getCommand = [ 'mget' ];
-      // This command will exceed commandBufferSize which triggers the resizing
-      // logic
-      var setCommand = [ 'mset' ];
-      // 4 butes already used for 'mset'
-      var commandBytesCount = 4;
-
-      for ( var i = 0; commandBytesCount <= commandBufferSize; i++ ) {
-        const key = i.toString();
-        const value = 'v' + i;
-        expectedResult.push(value);
-        getCommand.push(key);
-        setCommand = setCommand.concat([key, value]);
-        commandBytesCount += key.length + value.length;
+      const bigBuff = Array(commandBufferSize*4+1).join('+') //multiply x 4 for exceed the buffer size, so buf is 16384 '+'
+      await rawCall(['SET', 'key', bigBuff]);
+      const result = await rawCall(['GET', 'key']);
+      assert.ok(bigBuff === result);
+    })
+    
+    it('works correctly when command buffer needs to be resized', async function() {
+      const cmd = ['HMSET', 'hset:1'];
+      for(let i=0;i<128;i++) {
+        cmd.push('key'+i, 'val'+i);
       }
-
-      assert.ok(commandBytesCount > commandBufferSize);
-
-      await rawCall(setCommand);
-      const result = await rawCall(getCommand);
-      assert.deepEqual(result, expectedResult);
-    });
+      await rawCall(cmd);
+      const len = await rawCall(['HLEN', 'hset:1']);
+      assert.ok(len >= 128);
+    })
 
     describe('errors', function() {
 

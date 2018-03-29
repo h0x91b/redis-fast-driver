@@ -243,7 +243,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	//LOG("%s\n", __PRETTY_FUNCTION__);
 	static size_t bufsize = RFD_COMMAND_BUFFER_SIZE;
 	static char* buf = (char*)malloc(bufsize);
-	static size_t argvroom = 128;
+	static size_t argvroom = 1;
 	static size_t *argvlen = (size_t*)malloc(argvroom * sizeof(size_t*));
 	static char **argv = (char**)malloc(argvroom * sizeof(char*));
 	
@@ -256,20 +256,18 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	RedisConnector* self = ObjectWrap::Unwrap<RedisConnector>(info.This());
 	
 	Local<Array> array = Local<Array>::Cast(info[0]);
-	// Local<Function> cb = Local<Function>::Cast(info[1]);
-	//Persistent<Function> cb = Persistent<Function>::New(Local<Function>::Cast(args[1]));
 	size_t arraylen = array->Length();
 
 	bool resize_arraylen = false;
 
-	while(arraylen > argvroom) {
-		//LOG("double room for argv %zu\n", argvroom);
-		argvroom *= 2;
+	if(arraylen >= argvroom) {
+		argvroom = (arraylen / 8 + 1) * 8;
+		LOG("increase room for argv to %zu\n", argvroom);
 		resize_arraylen = true;
 	}
 
 	if (resize_arraylen) {
-		//LOG("resizing argvlen/argv");
+		LOG("resizing argvlen/argv");
 		free(argvlen);
 		free(argv);
 		argvlen = (size_t*)malloc(argvroom * sizeof(size_t*));
@@ -283,14 +281,15 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 		//LOG("str: \"%s\"\n", *str);
 		//LOG("len %u\n", len);
 		//LOG("bufused %zu\n", bufused);
-		if(bufused + len > bufsize) {
+		if(bufused + len >= bufsize) {
 			//increase buf size
-			//LOG("buf needed %zu\n", bufused + len);
-			//LOG("bufsize is not big enough, current: %zu ", bufsize);
-			bufsize = bufsize * 2;
-			//LOG("increase it to %zu\n", bufsize);
+			// LOG("buf needed %zu\n", bufused + len);
+			LOG("bufsize is not big enough, current: %zu ", bufsize);
+			// bufsize = bufsize * 2;
+			bufsize = ((bufused + len) / 256 + 1) * 256;
+			LOG("increase it to %zu\n", bufsize);
 			buf = (char*)realloc(buf, bufsize);
-			//try the smae index again
+			//try the same index again
 			i--;
 			continue;
 		}
