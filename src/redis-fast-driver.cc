@@ -260,7 +260,9 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 
 	if(arraylen >= argvroom) {
 		argvroom = (arraylen / 8 + 1) * 8;
-		LOG("increase room for argv to %zu\n", argvroom);
+		// LOG("increase room for argv to %zu\n", argvroom);
+		
+		// LOG("resizing argvlen/argv");
 		free(argvlen);
 		free(argv);
 		argvlen = (size_t*)malloc(argvroom * sizeof(size_t*));
@@ -277,10 +279,10 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 		if(bufused + len >= bufsize) {
 			//increase buf size
 			// LOG("buf needed %zu\n", bufused + len);
-			LOG("bufsize is not big enough, current: %zu ", bufsize);
+			// LOG("bufsize is not big enough, current: %zu ", bufsize);
 			// bufsize = bufsize * 2;
 			bufsize = ((bufused + len) / 256 + 1) * 256;
-			LOG("increase it to %zu\n", bufsize);
+			// LOG("increase it to %zu\n", bufsize);
 			buf = (char*)realloc(buf, bufsize);
 			//we must start from 0, because of `buf` pointer change, so argv[0] will point to non-existen memory...
 			bufused = 0;
@@ -294,7 +296,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 		//LOG("added \"%.*s\" len: %zu\n", int(argvlen[i]), argv[i], argvlen[i]);
 	}
 	
-	//LOG("command buffer filled with: \"%.*s\"\n", int(bufused), argv[0]);
+	//LOG("command buffer filled with: \"%.*s\"\n", int(bufused), buf);
 	uint32_t callback_id = self->callback_id++;
 	Isolate* isolate = Isolate::GetCurrent();
 	self->callbacksMap[callback_id].Reset(isolate, Local<Function>::Cast(info[1]));
