@@ -200,6 +200,30 @@ describe('redis-fast-driver', function() {
       assert.deepEqual(zrange, ['a', 'b', 'c', 'd', 'e']);
     });
 
+    it('works correctly when send buffer needs to be resized', async function() {
+      // This should be the same as RFD_COMMAND_BUFFER_SIZE defined in
+      // redis-fast-driver.h
+      const commandBufferSize = 4096;
+      let bigBuff;
+      for(let i=1;i<8;i++) {
+        //multiply * i for exceeding the buffer size, so buf is 4096*i '+'
+        bigBuff = Array(commandBufferSize*i+1).join('+');
+        await rawCall(['SET', 'key', bigBuff]);
+      }
+      const result = await rawCall(['GET', 'key']);
+      assert.ok(bigBuff === result);
+    });
+    
+    it('works correctly when command buffer needs to be resized', async function() {
+      const cmd = ['HMSET', 'hset:1'];
+      for(let i=0;i<128;i++) {
+        cmd.push('key'+i, 'val'+i);
+      }
+      await rawCall(cmd);
+      const len = await rawCall(['HLEN', 'hset:1']);
+      assert.ok(len >= 128);
+    });
+
     describe('errors', function() {
 
       it('incr a string', async function() {

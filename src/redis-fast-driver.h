@@ -3,6 +3,8 @@
 
 #include <nan.h>
 
+#define RFD_COMMAND_BUFFER_SIZE 4096;
+
 #if ENABLELOG
 #define LOG(...) fprintf( stderr, __VA_ARGS__ );
 #else

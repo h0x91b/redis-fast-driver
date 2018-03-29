@@ -241,9 +241,9 @@ void RedisConnector::OnRedisResponse(redisAsyncContext *c, void *r, void *privda
 
 NAN_METHOD(RedisConnector::RedisCmd) {
 	//LOG("%s\n", __PRETTY_FUNCTION__);
-	static size_t bufsize = 4096;
+	static size_t bufsize = RFD_COMMAND_BUFFER_SIZE;
 	static char* buf = (char*)malloc(bufsize);
-	static size_t argvroom = 128;
+	static size_t argvroom = 1;
 	static size_t *argvlen = (size_t*)malloc(argvroom * sizeof(size_t*));
 	static char **argv = (char**)malloc(argvroom * sizeof(char*));
 	
@@ -256,12 +256,13 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	RedisConnector* self = ObjectWrap::Unwrap<RedisConnector>(info.This());
 	
 	Local<Array> array = Local<Array>::Cast(info[0]);
-	// Local<Function> cb = Local<Function>::Cast(info[1]);
-	//Persistent<Function> cb = Persistent<Function>::New(Local<Function>::Cast(args[1]));
 	size_t arraylen = array->Length();
-	while(arraylen > argvroom) {
-		// LOG("double room for argv %zu\n", argvroom);
-		argvroom *= 2;
+
+	if(arraylen >= argvroom) {
+		argvroom = (arraylen / 8 + 1) * 8;
+		// LOG("increase room for argv to %zu\n", argvroom);
+		
+		// LOG("resizing argvlen/argv");
 		free(argvlen);
 		free(argv);
 		argvlen = (size_t*)malloc(argvroom * sizeof(size_t*));
@@ -271,23 +272,31 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	for(uint32_t i=0;i<arraylen;i++) {
 		String::Utf8Value str(array->Get(i));
 		uint32_t len = str.length();
-		if(bufused + len > bufsize) {
+		//LOG("i %u\n", i);
+		//LOG("str: \"%s\"\n", *str);
+		//LOG("len %u\n", len);
+		//LOG("bufused %zu\n", bufused);
+		if(bufused + len >= bufsize) {
 			//increase buf size
-			// LOG("bufsize is not big enough, current: %llu ", bufsize);
+			// LOG("buf needed %zu\n", bufused + len);
+			// LOG("bufsize is not big enough, current: %zu ", bufsize);
+			// bufsize = bufsize * 2;
 			bufsize = ((bufused + len) / 256 + 1) * 256;
-			// LOG("increase it to %llu\n", bufsize);
+			// LOG("increase it to %zu\n", bufsize);
 			buf = (char*)realloc(buf, bufsize);
+			//we must start from 0, because of `buf` pointer change, so argv[0] will point to non-existen memory...
 			bufused = 0;
-			i = 0;
+			i= -1; //`continue` will make +1
 			continue;
 		}
 		argv[i] = buf + bufused;
-		memcpy(buf+bufused, *str, len);
+		memcpy(argv[i], *str, len);
 		bufused += len;
 		argvlen[i] = len;
-		//LOG("add \"%s\" len: %d\n", argv[i], argvlen[i]);
+		//LOG("added \"%.*s\" len: %zu\n", int(argvlen[i]), argv[i], argvlen[i]);
 	}
 	
+	//LOG("command buffer filled with: \"%.*s\"\n", int(bufused), buf);
 	uint32_t callback_id = self->callback_id++;
 	Isolate* isolate = Isolate::GetCurrent();
 	self->callbacksMap[callback_id].Reset(isolate, Local<Function>::Cast(info[1]));
