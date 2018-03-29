@@ -204,11 +204,11 @@ describe('redis-fast-driver', function() {
       // This should be the same as RFD_COMMAND_BUFFER_SIZE defined in
       // redis-fast-driver.h
       const commandBufferSize = 4096;
-      const bigBuff = Array(commandBufferSize*4+1).join('+') //multiply x 4 for exceed the buffer size, so buf is 16384 '+'
+      const bigBuff = Array(commandBufferSize*4+1).join('+'); //multiply x 4 for exceed the buffer size, so buf is 16384 '+'
       await rawCall(['SET', 'key', bigBuff]);
       const result = await rawCall(['GET', 'key']);
       assert.ok(bigBuff === result);
-    })
+    });
     
     it('works correctly when command buffer needs to be resized', async function() {
       const cmd = ['HMSET', 'hset:1'];
@@ -218,7 +218,7 @@ describe('redis-fast-driver', function() {
       await rawCall(cmd);
       const len = await rawCall(['HLEN', 'hset:1']);
       assert.ok(len >= 128);
-    })
+    });
 
     describe('errors', function() {
 
