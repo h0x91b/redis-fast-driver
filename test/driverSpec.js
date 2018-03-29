@@ -201,6 +201,8 @@ describe('redis-fast-driver', function() {
     });
 
     it('works correctly when command buffer needs to be resized', async function() {
+      // This should be the same as RFD_COMMAND_BUFFER_SIZE defined in
+      // redis-fast-driver.h
       const commandBufferSize = 4096;
       const expectedResult = [];
       const getCommand = [ 'mget' ];

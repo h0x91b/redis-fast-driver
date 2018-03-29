@@ -241,7 +241,7 @@ void RedisConnector::OnRedisResponse(redisAsyncContext *c, void *r, void *privda
 
 NAN_METHOD(RedisConnector::RedisCmd) {
 	//LOG("%s\n", __PRETTY_FUNCTION__);
-	static size_t bufsize = 4096;
+	static size_t bufsize = RFD_COMMAND_BUFFER_SIZE;
 	static char* buf = (char*)malloc(bufsize);
 	static size_t argvroom = 128;
 	static size_t *argvlen = (size_t*)malloc(argvroom * sizeof(size_t*));
