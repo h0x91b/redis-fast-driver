@@ -20,6 +20,11 @@
   "contributors": [
     "Samuel Reed (https://github.com/strml)"
   ],
+  "keywords": [
+    "redis",
+    "async",
+    "pipelining"
+  ],
   "license": "MIT",
   "gypfile": true,
   "bugs": {
