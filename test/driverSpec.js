@@ -200,6 +200,32 @@ describe('redis-fast-driver', function() {
       assert.deepEqual(zrange, ['a', 'b', 'c', 'd', 'e']);
     });
 
+    it('works correctly when command buffer needs to be resized', async function() {
+      const commandBufferSize = 4096;
+      const expectedResult = [];
+      const getCommand = [ 'mget' ];
+      // This command will exceed commandBufferSize which triggers the resizing
+      // logic
+      var setCommand = [ 'mset' ];
+      // 4 butes already used for 'mset'
+      var commandBytesCount = 4;
+
+      for ( var i = 0; commandBytesCount <= commandBufferSize; i++ ) {
+        const key = i.toString();
+        const value = 'v' + i;
+        expectedResult.push(value);
+        getCommand.push(key);
+        setCommand = setCommand.concat([key, value]);
+        commandBytesCount += key.length + value.length;
+      }
+
+      assert.ok(commandBytesCount > commandBufferSize);
+
+      await rawCall(setCommand);
+      const result = await rawCall(getCommand);
+      assert.deepEqual(result, expectedResult);
+    });
+
     describe('errors', function() {
 
       it('incr a string', async function() {
