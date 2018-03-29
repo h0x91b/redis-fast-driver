@@ -259,9 +259,17 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	// Local<Function> cb = Local<Function>::Cast(info[1]);
 	//Persistent<Function> cb = Persistent<Function>::New(Local<Function>::Cast(args[1]));
 	size_t arraylen = array->Length();
+
+	bool resize_arraylen = false;
+
 	while(arraylen > argvroom) {
-		// LOG("double room for argv %zu\n", argvroom);
+		//LOG("double room for argv %zu\n", argvroom);
 		argvroom *= 2;
+		resize_arraylen = true;
+	}
+
+	if (resize_arraylen) {
+		//LOG("resizing argvlen/argv");
 		free(argvlen);
 		free(argv);
 		argvlen = (size_t*)malloc(argvroom * sizeof(size_t*));
