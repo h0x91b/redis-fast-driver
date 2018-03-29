@@ -258,16 +258,9 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	Local<Array> array = Local<Array>::Cast(info[0]);
 	size_t arraylen = array->Length();
 
-	bool resize_arraylen = false;
-
 	if(arraylen >= argvroom) {
 		argvroom = (arraylen / 8 + 1) * 8;
 		LOG("increase room for argv to %zu\n", argvroom);
-		resize_arraylen = true;
-	}
-
-	if (resize_arraylen) {
-		LOG("resizing argvlen/argv");
 		free(argvlen);
 		free(argv);
 		argvlen = (size_t*)malloc(argvroom * sizeof(size_t*));
@@ -289,12 +282,13 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 			bufsize = ((bufused + len) / 256 + 1) * 256;
 			LOG("increase it to %zu\n", bufsize);
 			buf = (char*)realloc(buf, bufsize);
-			//try the same index again
-			i--;
+			//we must start from 0, because of `buf` pointer change, so argv[0] will point to non-existen memory...
+			bufused = 0;
+			i= -1; //`continue` will make +1
 			continue;
 		}
 		argv[i] = buf + bufused;
-		memcpy(buf+bufused, *str, len);
+		memcpy(argv[i], *str, len);
 		bufused += len;
 		argvlen[i] = len;
 		//LOG("added \"%.*s\" len: %zu\n", int(argvlen[i]), argv[i], argvlen[i]);
