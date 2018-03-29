@@ -278,7 +278,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 			// LOG("increase it to %llu\n", bufsize);
 			buf = (char*)realloc(buf, bufsize);
 			bufused = 0;
-			i = 0;
+			i = -1;
 			continue;
 		}
 		argv[i] = buf + bufused;
