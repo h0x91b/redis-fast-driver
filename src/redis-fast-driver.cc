@@ -283,10 +283,18 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 			// bufsize = bufsize * 2;
 			bufsize = ((bufused + len) / 256 + 1) * 256;
 			// LOG("increase it to %zu\n", bufsize);
-			buf = (char*)realloc(buf, bufsize);
-			//we must start from 0, because of `buf` pointer change, so argv[0] will point to non-existen memory...
-			bufused = 0;
-			i= -1; //`continue` will make +1
+			char *new_buf = (char*)realloc(buf, bufsize);
+			if (new_buf != buf) {
+				buf = new_buf;;
+				size_t bufused_ = 0;
+				for(uint32_t j=0;j<i;j++) {
+					argv[j] = buf + bufused_;
+					bufused_ += argvlen[j];
+				}
+			}
+			//continue from the same index again
+			//i will be ++ed before next iteration
+			i--;
 			continue;
 		}
 		argv[i] = buf + bufused;
