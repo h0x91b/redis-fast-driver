@@ -224,19 +224,6 @@ describe('redis-fast-driver', function() {
       assert.ok(len > 128);
     });
 
-    it.only('command with many args, significantly larger then the buffer', async function() {
-      const commandBufferSize = 4096;
-
-      const keys = Array(Math.ceil(commandBufferSize / 18 * 2)).fill('table:prop_name:id');
-      await rawCall(['MGET'].concat(keys));
-    });
-
-    it.only('command in which last arg causes reallocation', async function() {
-      const commandBufferSize = 4096;
-      const bigBuff = Array(commandBufferSize*3).join('+');
-      await rawCall(['SET', 'key', bigBuff]);
-    });
-
     describe('errors', function() {
 
       it('incr a string', async function() {
