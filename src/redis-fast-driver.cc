@@ -276,7 +276,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 		//LOG("str: \"%s\"\n", *str);
 		//LOG("len %u\n", len);
 		//LOG("bufused %zu\n", bufused);
-		if(bufused + len >= bufsize) {
+		if(bufused + len > bufsize) {
 			//increase buf size
 			// LOG("buf needed %zu\n", bufused + len);
 			// LOG("bufsize is not big enough, current: %zu ", bufsize);
