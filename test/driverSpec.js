@@ -231,6 +231,12 @@ describe('redis-fast-driver', function() {
       await rawCall(['MGET'].concat(keys));
     });
 
+    it.only('command in which last arg causes reallocation', async function() {
+      const commandBufferSize = 4096;
+      const bigBuff = Array(commandBufferSize*3).join('+');
+      await rawCall(['SET', 'key', bigBuff]);
+    });
+
     describe('errors', function() {
 
       it('incr a string', async function() {

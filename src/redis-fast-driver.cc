@@ -281,7 +281,23 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 			LOG("buf needed %zu\n", bufused + len);
 			LOG("bufsize is not big enough, current: %zu ", bufsize);
 			// bufsize = bufsize * 2;
-			bufsize = ((bufused + len) / 256 + 1) * 256;
+			// bufsize = ((bufused + len) / 256 + 1) * 256;
+			if (i == arraylen - 1) {
+				// last element
+				// only (bufused + len) is really needed but give it a bit of headroom 
+				// since its likely a similar command will be fired again (and it might
+				// be slightly larger)
+				bufsize = 1.2 * (bufused + len);
+			} else {
+				// estimate remaining space that is needed
+				float avarage_arg_size = float(bufused + len) / i;
+				// this is definitely needed
+				bufsize = bufused + len +
+					// estimated bytes needed for the remainder of the args
+					(arraylen - 1 - i) * avarage_arg_size
+					// plus some extra headroom
+					* 1.2;
+			}      
 			LOG("increase it to %zu\n", bufsize);
 			char *new_buf = (char*)realloc(buf, bufsize);
 			if (new_buf != buf) {
