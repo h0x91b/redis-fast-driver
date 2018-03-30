@@ -258,7 +258,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	Local<Array> array = Local<Array>::Cast(info[0]);
 	size_t arraylen = array->Length();
 
-	if(arraylen >= argvroom) {
+	if(arraylen > argvroom) {
 		argvroom = (arraylen / 8 + 1) * 8;
 		// LOG("increase room for argv to %zu\n", argvroom);
 		

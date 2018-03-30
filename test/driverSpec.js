@@ -216,12 +216,12 @@ describe('redis-fast-driver', function() {
     
     it('works correctly when command buffer needs to be resized', async function() {
       const cmd = ['HMSET', 'hset:1'];
-      for(let i=0;i<128;i++) {
+      for(let i=0;i<=128;i++) {
         cmd.push('key'+i, 'val'+i);
       }
       await rawCall(cmd);
       const len = await rawCall(['HLEN', 'hset:1']);
-      assert.ok(len >= 128);
+      assert.ok(len > 128);
     });
 
     describe('errors', function() {
