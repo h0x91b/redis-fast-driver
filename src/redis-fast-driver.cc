@@ -278,8 +278,8 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 		//LOG("bufused %zu\n", bufused);
 		if(bufused + len > bufsize) {
 			//increase buf size
-			LOG("buf needed %zu\n", bufused + len);
-			LOG("bufsize is not big enough, current: %zu ", bufsize);
+			// LOG("buf needed %zu\n", bufused + len);
+			// LOG("bufsize is not big enough, current: %zu ", bufsize);
 			// bufsize = bufsize * 2;
 			// bufsize = ((bufused + len) / 256 + 1) * 256;
 			if (i == arraylen - 1) {
@@ -298,7 +298,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 					// plus some extra headroom
 					* 1.2;
 			}      
-			LOG("increase it to %zu\n", bufsize);
+			// LOG("increase it to %zu\n", bufsize);
 			char *new_buf = (char*)realloc(buf, bufsize);
 			if (new_buf != buf) {
 				buf = new_buf;;
@@ -320,7 +320,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 		//LOG("added \"%.*s\" len: %zu\n", int(argvlen[i]), argv[i], argvlen[i]);
 	}
 	
-	LOG("total bufused %zu\n", bufused);
+	// LOG("total bufused %zu\n", bufused);
 	//LOG("command buffer filled with: \"%.*s\"\n", int(bufused), buf);
 	uint32_t callback_id = self->callback_id++;
 	Isolate* isolate = Isolate::GetCurrent();
