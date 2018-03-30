@@ -12,7 +12,7 @@
                 "<!(node -e \"require('nan')\")"
             ],
             "defines": [
-                "ENABLELOG=0"
+                "ENABLELOG=1"
             ]
         }
     ]
