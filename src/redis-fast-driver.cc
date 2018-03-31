@@ -1,6 +1,7 @@
 #ifndef BUILDING_NODE_EXTENSION
 	#define BUILDING_NODE_EXTENSION
 #endif
+#include <math.h>
 #include <node.h>
 #include <node_version.h>
 #include <v8.h>
@@ -297,8 +298,10 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 					(arraylen - 1 - i) * avarage_arg_size
 					// plus some extra headroom
 					* 1.2;
-			}      
-			// LOG("increase it to %zu\n", bufsize);
+			}    
+			// LOG("increase it to %zu, ", bufsize);
+			bufsize = ceil((float)bufsize / 64) * 64;  
+			// LOG("but rounded up to multiple of 64: %zu\n", bufsize);
 			char *new_buf = (char*)realloc(buf, bufsize);
 			if (new_buf != buf) {
 				buf = new_buf;;
