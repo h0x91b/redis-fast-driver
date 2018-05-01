@@ -340,9 +340,13 @@ ioredis `npm run bench` on same machine
 
 Arseniy Pavlenko h0x91b@gmail.com
 
-Skype: h0x91b
-
 Linkedin: https://il.linkedin.com/in/h0x91b
+
+# Contributors
+
+* Samuel Reed (https://github.com/strml)
+* Adrian Gierakowski (https://github.com/adrian-gierakowski)
+* HcgRandon (https://github.com/HcgRandon)
 
 # Licence
 

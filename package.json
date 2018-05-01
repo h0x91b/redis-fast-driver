@@ -18,7 +18,9 @@
   },
   "author": "Arseniy Pavlenko (https://github.com/h0x91b)",
   "contributors": [
-    "Samuel Reed (https://github.com/strml)"
+    "Samuel Reed (https://github.com/strml)",
+    "Adrian Gierakowski (https://github.com/adrian-gierakowski)",
+    "HcgRandon (https://github.com/HcgRandon)"
   ],
   "keywords": [
     "redis",
