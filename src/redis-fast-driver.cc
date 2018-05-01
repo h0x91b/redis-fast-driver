@@ -288,17 +288,17 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 				// only (bufused + len) is really needed but give it a bit of headroom 
 				// since its likely a similar command will be fired again (and it might
 				// be slightly larger)
-				bufsize = 1.2 * (bufused + len);
+				bufsize = (1.2 * (bufused + len) / 256 + 1) * 256;
 			} else {
 				// estimate remaining space that is needed
 				float avarage_arg_size = float(bufused + len) / i;
 				// this is definitely needed
-				bufsize = bufused + len +
+				bufsize = ((bufused + len +
 					// estimated bytes needed for the remainder of the args
 					(arraylen - 1 - i) * avarage_arg_size
 					// plus some extra headroom
-					* 1.2;
-			}    
+					* 1.2) / 256 + 1) * 256;
+			}
 			// LOG("increase it to %zu, ", bufsize);
 			bufsize = ceil((float)bufsize / 64) * 64;  
 			// LOG("but rounded up to multiple of 64: %zu\n", bufsize);
