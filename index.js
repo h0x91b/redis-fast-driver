@@ -59,7 +59,7 @@ class Redis extends EventEmitter {
 
   reconnect() {
     const {opts} = this;
-    if (opts.tryToReconnect === false || this.reconnects >= opts.maxRetries) {
+    if (opts.tryToReconnect === false || (opts.maxRetries > -1 && this.reconnects >= opts.maxRetries)) {
       this.emit('error', new Error('Disconnected, exhausted retries.'));
       this.end();
       return;
