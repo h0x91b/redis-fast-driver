@@ -3,7 +3,8 @@ var Redis = require('.');
 
 var r = new Redis({
 	host: '127.0.0.1',
-	port: 6379
+	port: 6379,
+	maxRetries: -1
 });
 
 //happen only once

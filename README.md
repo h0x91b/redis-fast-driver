@@ -25,7 +25,7 @@ var r = new Redis({
 	//host: '/tmp/redis.sock', //unix domain
 	host: '127.0.0.1', //can be IP or hostname
 	port: 6379,
-	maxRetries: 10, //reconnect retries, default 10
+	maxRetries: 10, //reconnect retries, default -1 (infinity)
 	auth: '123', //optional password, if needed
 	db: 5, //optional db selection
 	autoConnect: true, //will connect after creation

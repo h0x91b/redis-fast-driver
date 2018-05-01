@@ -8,7 +8,7 @@ const defaultOptions = {
   port: 6379,
   db: 0,
   auth: false,
-  maxRetries: 10,
+  maxRetries: -1,
   tryToReconnect: true,
   reconnectTimeout: 1000,
   autoConnect: true,
