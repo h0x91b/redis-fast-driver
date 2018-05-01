@@ -138,203 +138,117 @@ Works MUCH faster then node-redis, 20-50% faster then `ioredis` and even faster 
 
 Results for my MacBook Pro (Retina, 15-inch, Mid 2014, 2.5 GHz Intel Core i7) via tcp/ip.
 
-Redis-fast-driver `node example.js`:
+Redis benchmark tool with `-q` flag via tcp/ip on this machine:
 
-	=================================================
-	===
-	Start test: PING command 1000 times
-	Test complete in 7ms, speed 142857.14 in second, cold down 1.5 sec
-	===
-	Start test: INCR command 1000 times
-	Test complete in 6ms, speed 166666.67 in second, cold down 1.5 sec
-	===
-	Start test: GET command 1000 times
-	Test complete in 6ms, speed 166666.67 in second, cold down 1.5 sec
-	===
-	Start test: HGET command 1000 times
-	Test complete in 7ms, speed 142857.14 in second, cold down 1.5 sec
-	===
-	Start test: HGETALL command 1000 times
-	Test complete in 8ms, speed 125000.00 in second, cold down 1.5 sec
-	===
-	Start test: ZRANGE 0 4 command 1000 times
-	Test complete in 12ms, speed 83333.33 in second, cold down 1.5 sec
-	===
-	Start test: PING command 5000 times
-	Test complete in 15ms, speed 333333.33 in second, cold down 1.5 sec
-	===
-	Start test: INCR command 5000 times
-	Test complete in 16ms, speed 312500.00 in second, cold down 1.5 sec
-	===
-	Start test: GET command 5000 times
-	Test complete in 18ms, speed 277777.78 in second, cold down 1.5 sec
-	===
-	Start test: HGET command 5000 times
-	Test complete in 21ms, speed 238095.24 in second, cold down 1.5 sec
-	===
-	Start test: HGETALL command 5000 times
-	Test complete in 35ms, speed 142857.14 in second, cold down 1.5 sec
-	===
-	Start test: ZRANGE 0 4 command 5000 times
-	Test complete in 32ms, speed 156250.00 in second, cold down 1.5 sec
-	===
-	Start test: PING command 10000 times
-	Test complete in 28ms, speed 357142.86 in second, cold down 1.5 sec
-	===
-	Start test: INCR command 10000 times
-	Test complete in 26ms, speed 384615.38 in second, cold down 1.5 sec
-	===
-	Start test: GET command 10000 times
-	Test complete in 29ms, speed 344827.59 in second, cold down 1.5 sec
-	===
-	Start test: HGET command 10000 times
-	Test complete in 32ms, speed 312500.00 in second, cold down 1.5 sec
-	===
-	Start test: HGETALL command 10000 times
-	Test complete in 62ms, speed 161290.32 in second, cold down 1.5 sec
-	===
-	Start test: ZRANGE 0 4 command 10000 times
-	Test complete in 63ms, speed 158730.16 in second, cold down 1.5 sec
-	===
-	Start test: PING command 25000 times
-	Test complete in 76ms, speed 328947.37 in second, cold down 1.5 sec
-	===
-	Start test: INCR command 25000 times
-	Test complete in 79ms, speed 316455.70 in second, cold down 1.5 sec
-	===
-	Start test: GET command 25000 times
-	Test complete in 97ms, speed 257731.96 in second, cold down 1.5 sec
-	===
-	Start test: HGET command 25000 times
-	Test complete in 99ms, speed 252525.25 in second, cold down 1.5 sec
-	===
-	Start test: HGETALL command 25000 times
-	Test complete in 163ms, speed 153374.23 in second, cold down 1.5 sec
-	===
-	Start test: ZRANGE 0 4 command 25000 times
-	Test complete in 159ms, speed 157232.70 in second, cold down 1.5 sec
-	=================================================
-
-Redis benchmark tool with `-q` flag via tcp/ip on same machine:
-
-	PING_INLINE: 125313.29 requests per second
-	PING_BULK: 125313.29 requests per second
-	SET: 126742.72 requests per second
-	GET: 124533.01 requests per second
-	INCR: 126742.72 requests per second
-	LPUSH: 126422.25 requests per second
-	LPOP: 125000.00 requests per second
-	SADD: 121951.22 requests per second
-	SPOP: 125628.14 requests per second
-	LPUSH (needed to benchmark LRANGE): 117785.63 requests per second
-	LRANGE_100 (first 100 elements): 31948.88 requests per second
-	LRANGE_300 (first 300 elements): 13264.36 requests per second
-	LRANGE_500 (first 450 elements): 9039.96 requests per second
-	LRANGE_600 (first 600 elements): 6799.95 requests per second
-	MSET (10 keys): 87873.46 requests per second
+	PING_INLINE: 85324.23 requests per second
+	PING_BULK: 85034.02 requests per second
+	SET: 85034.02 requests per second
+	GET: 84317.03 requests per second
+	INCR: 87032.20 requests per second
+	LPUSH: 85397.09 requests per second
+	RPUSH: 86505.19 requests per second
+	LPOP: 85106.38 requests per second
+	RPOP: 84961.77 requests per second
+	SADD: 86132.64 requests per second
+	HSET: 86058.52 requests per second
+	SPOP: 86430.43 requests per second
+	LPUSH (needed to benchmark LRANGE): 84817.64 requests per second
+	LRANGE_100 (first 100 elements): 26441.04 requests per second
+	LRANGE_300 (first 300 elements): 11273.96 requests per second
+	LRANGE_500 (first 450 elements): 7881.46 requests per second
+	LRANGE_600 (first 600 elements): 6071.28 requests per second
+	MSET (10 keys): 78064.01 requests per second
 
 Mocha test (`npm run bench`) of Redis-fast-driver:
 
 	==========================
-	redis-fast-driver: 1.0.3
+	redis-fast-driver: 2.1.2
 	CPU: 8
 	OS: darwin x64
-	node version: v4.2.3
-	current commit: 0959643
+	node version: v8.9.4
+	current commit: 7694b0d
 	==========================
-
+	
 	Concurrency 10000
-	218,101 op/s » PING
-	190,719 op/s » SET foo bar
-	183,838 op/s » GET foo
-	203,899 op/s » INCR number
-	113,289 op/s » HGETALL hset:1
-	106,666 op/s » ZRANGE zset:1 0 5
-	13,346 op/s » LRANGE list 0 99
-
+	475,043 op/s » PING
+	358,870 op/s » SET foo bar
+	406,564 op/s » GET foo
+	437,724 op/s » INCR number
+	185,442 op/s » HGETALL hset:1
+	181,277 op/s » ZRANGE zset:1 0 5
+	17,493 op/s » LRANGE list 0 99
+	
 	Concurrency 1000
-	205,586 op/s » PING
-	201,202 op/s » SET foo bar
-	209,195 op/s » GET foo
-	224,303 op/s » INCR number
-	116,750 op/s » HGETALL hset:1
-	110,804 op/s » ZRANGE zset:1 0 5
-	11,680 op/s » LRANGE list 0 99
-
+	368,027 op/s » PING
+	294,628 op/s » SET foo bar
+	314,100 op/s » GET foo
+	345,316 op/s » INCR number
+	155,711 op/s » HGETALL hset:1
+	158,416 op/s » ZRANGE zset:1 0 5
+	16,769 op/s » LRANGE list 0 99
+	
 	Concurrency 500
-	201,103 op/s » PING
-	153,441 op/s » SET foo bar
-	173,239 op/s » GET foo
-	179,958 op/s » INCR number
-	108,349 op/s » HGETALL hset:1
-	101,903 op/s » ZRANGE zset:1 0 5
-	13,840 op/s » LRANGE list 0 99
-
+	364,537 op/s » PING
+	254,194 op/s » SET foo bar
+	297,171 op/s » GET foo
+	310,571 op/s » INCR number
+	142,677 op/s » HGETALL hset:1
+	143,808 op/s » ZRANGE zset:1 0 5
+	16,230 op/s » LRANGE list 0 99
+	
 	Concurrency 250
-	195,763 op/s » PING
-	148,687 op/s » SET foo bar
-	166,859 op/s » GET foo
-	169,391 op/s » INCR number
-	93,612 op/s » HGETALL hset:1
-	85,425 op/s » ZRANGE zset:1 0 5
-	13,287 op/s » LRANGE list 0 99
-
+	343,095 op/s » PING
+	242,263 op/s » SET foo bar
+	280,271 op/s » GET foo
+	293,171 op/s » INCR number
+	141,413 op/s » HGETALL hset:1
+	135,673 op/s » ZRANGE zset:1 0 5
+	15,667 op/s » LRANGE list 0 99
+	
 	Concurrency 100
-	172,089 op/s » PING
-	131,105 op/s » SET foo bar
-	147,579 op/s » GET foo
-	150,110 op/s » INCR number
-	87,084 op/s » HGETALL hset:1
-	82,737 op/s » ZRANGE zset:1 0 5
-	13,079 op/s » LRANGE list 0 99
-
+	293,601 op/s » PING
+	213,687 op/s » SET foo bar
+	245,684 op/s » GET foo
+	254,148 op/s » INCR number
+	126,322 op/s » HGETALL hset:1
+	121,123 op/s » ZRANGE zset:1 0 5
+	15,474 op/s » LRANGE list 0 99
+	
 	Concurrency 10
-	99,971 op/s » PING
-	96,470 op/s » SET foo bar
-	102,060 op/s » GET foo
-	103,722 op/s » INCR number
-	53,660 op/s » HGETALL hset:1
-	60,193 op/s » ZRANGE zset:1 0 5
-	11,081 op/s » LRANGE list 0 99
-
+	157,582 op/s » PING
+	132,260 op/s » SET foo bar
+	143,180 op/s » GET foo
+	145,747 op/s » INCR number
+	92,034 op/s » HGETALL hset:1
+	89,295 op/s » ZRANGE zset:1 0 5
+	14,229 op/s » LRANGE list 0 99
+	
 	Concurrency 1
-	23,132 op/s » PING
-	19,633 op/s » SET foo bar
-	22,256 op/s » GET foo
-	21,776 op/s » INCR number
-	15,555 op/s » HGETALL hset:1
-	19,501 op/s » ZRANGE zset:1 0 5
-	7,949 op/s » LRANGE list 0 99
+	26,111 op/s » PING
+	24,870 op/s » SET foo bar
+	25,364 op/s » GET foo
+	25,348 op/s » INCR number
+	22,255 op/s » HGETALL hset:1
+	21,989 op/s » ZRANGE zset:1 0 5
+	10,139 op/s » LRANGE list 0 99
 
-	Suites:  7
-	Benches: 49
-	Elapsed: 221,065.04 ms
-
-ioredis `npm run bench` on same machine
+ioredis `npm run bench` on same machine for comparison
 
 	==========================
-	redis: 2.0.1
+	redis: 3.2.2
 	CPU: 8
 	OS: darwin x64
-	node version: v4.2.3
-	current commit: 2ac00c8
+	node version: v8.9.4
+	current commit: 988d8d9
 	==========================
-
+	
 	SET foo bar
-	126,941 op/s » javascript parser + dropBufferSupport: true
-	124,539 op/s » javascript parser
-	128,321 op/s » hiredis parser + dropBufferSupport: true
-	111,211 op/s » hiredis parser
-
+	87,895 op/s » javascript parser + dropBufferSupport: true
+	90,263 op/s » javascript parser
+	
 	LRANGE foo 0 99
-	21,243 op/s » javascript parser + dropBufferSupport: true
-	12,675 op/s » javascript parser
-	27,931 op/s » hiredis parser + dropBufferSupport: true
-	5,955 op/s » hiredis parser
-
-	Suites:  2
-	Benches: 8
-	Elapsed: 60,197.37 ms
+	37,174 op/s » javascript parser + dropBufferSupport: true
+	24,955 op/s » javascript parser
 
 # Author
 
@@ -352,7 +266,7 @@ Linkedin: https://il.linkedin.com/in/h0x91b
 
 (The MIT License)
 
-Copyright (c) 2015-2016 Arseniy Pavlenko h0x91b@gmail.com
+Copyright (c) 2015-2018 Arseniy Pavlenko h0x91b@gmail.com
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
