@@ -46,6 +46,7 @@ class Redis extends EventEmitter {
       this.connecting = true;
       this.redis.connect(this.opts.host, this.opts.port, this.onConnect, this.onDisconnect);
     } catch(e) {
+      this.emit('error', new Error(e));
       this.reconnect();
     }
   }
@@ -76,7 +77,7 @@ class Redis extends EventEmitter {
     if (dbNum > 0) {
       this.redis.redisCmd(['SELECT', dbNum], (e) => {
         if (e) {
-          this.emit('error', e);
+          this.emit('error', new Error(e));
           this.reconnect();
           return;
         }
@@ -105,7 +106,7 @@ class Redis extends EventEmitter {
 
   _onConnect(e) {
     if (e) {
-      this.emit('error', e);
+      this.emit('error', new Error(e));
       this.reconnect();
       return;
     }
@@ -137,7 +138,7 @@ class Redis extends EventEmitter {
   _onDisconnect(e) {
     if (this.destroyed) return;
     if (e) {
-      this.emit('error', e);
+      this.emit('error', new Error(e));
     }
     this.ready = false;
     this.connecting = false;
@@ -155,7 +156,7 @@ class Redis extends EventEmitter {
 
     if (typeof cb === 'undefined') {
       cb = (e) => {
-        if (e) this.emit('error', e);
+        if (e) this.emit('error', new Error(e));
       };
     }
 
