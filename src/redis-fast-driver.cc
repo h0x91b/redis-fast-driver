@@ -1,6 +1,7 @@
 #ifndef BUILDING_NODE_EXTENSION
 	#define BUILDING_NODE_EXTENSION
 #endif
+#include <math.h>
 #include <node.h>
 #include <node_version.h>
 #include <v8.h>
@@ -243,7 +244,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	//LOG("%s\n", __PRETTY_FUNCTION__);
 	static size_t bufsize = RFD_COMMAND_BUFFER_SIZE;
 	static char* buf = (char*)malloc(bufsize);
-	static size_t argvroom = 1;
+	static size_t argvroom = 128;
 	static size_t *argvlen = (size_t*)malloc(argvroom * sizeof(size_t*));
 	static char **argv = (char**)malloc(argvroom * sizeof(char*));
 	
@@ -258,7 +259,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	Local<Array> array = Local<Array>::Cast(info[0]);
 	size_t arraylen = array->Length();
 
-	if(arraylen >= argvroom) {
+	if(arraylen > argvroom) {
 		argvroom = (arraylen / 8 + 1) * 8;
 		// LOG("increase room for argv to %zu\n", argvroom);
 		
@@ -276,17 +277,43 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 		//LOG("str: \"%s\"\n", *str);
 		//LOG("len %u\n", len);
 		//LOG("bufused %zu\n", bufused);
-		if(bufused + len >= bufsize) {
+		if(bufused + len > bufsize) {
 			//increase buf size
 			// LOG("buf needed %zu\n", bufused + len);
 			// LOG("bufsize is not big enough, current: %zu ", bufsize);
 			// bufsize = bufsize * 2;
-			bufsize = ((bufused + len) / 256 + 1) * 256;
-			// LOG("increase it to %zu\n", bufsize);
-			buf = (char*)realloc(buf, bufsize);
-			//we must start from 0, because of `buf` pointer change, so argv[0] will point to non-existen memory...
-			bufused = 0;
-			i= -1; //`continue` will make +1
+			// bufsize = ((bufused + len) / 256 + 1) * 256;
+			if (i == arraylen - 1) {
+				// last element
+				// only (bufused + len) is really needed but give it a bit of headroom 
+				// since its likely a similar command will be fired again (and it might
+				// be slightly larger)
+				bufsize = 1.2 * (bufused + len);
+			} else {
+				// estimate remaining space that is needed
+				float avarage_arg_size = float(bufused + len) / i;
+				// this is definitely needed
+				bufsize = bufused + len +
+					// estimated bytes needed for the remainder of the args
+					(arraylen - 1 - i) * avarage_arg_size
+					// plus some extra headroom
+					* 1.2;
+			}    
+			// LOG("increase it to %zu, ", bufsize);
+			bufsize = ceil((float)bufsize / 64) * 64;  
+			// LOG("but rounded up to multiple of 64: %zu\n", bufsize);
+			char *new_buf = (char*)realloc(buf, bufsize);
+			if (new_buf != buf) {
+				buf = new_buf;;
+				size_t bufused_ = 0;
+				for(uint32_t j=0;j<i;j++) {
+					argv[j] = buf + bufused_;
+					bufused_ += argvlen[j];
+				}
+			}
+			//continue from the same index again
+			//i will be ++ed before next iteration
+			i--;
 			continue;
 		}
 		argv[i] = buf + bufused;
@@ -296,6 +323,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 		//LOG("added \"%.*s\" len: %zu\n", int(argvlen[i]), argv[i], argvlen[i]);
 	}
 	
+	// LOG("total bufused %zu\n", bufused);
 	//LOG("command buffer filled with: \"%.*s\"\n", int(bufused), buf);
 	uint32_t callback_id = self->callback_id++;
 	Isolate* isolate = Isolate::GetCurrent();
