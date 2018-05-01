@@ -131,10 +131,11 @@ NAN_METHOD(RedisConnector::Connect) {
 		self->c = redisAsyncConnect(host, port);
 	}
 	if (self->c->err) {
-		fprintf(stderr, "RedisConnector::Connect Error: %s\n", self->c->errstr);
-		fprintf(stderr, "RedisConnector::Connect Host: %s port: %d\n", host, port);
-		// handle error
-		Nan::ThrowError(self->c->errstr);
+		self->is_connected = false;
+		Local<Value> argv[1] = {
+			Nan::New<String>(self->c->errstr).ToLocalChecked()
+		};
+		Nan::New(self->connectCb)->Call(Nan::GetCurrentContext()->Global(), 1, argv);
 		info.GetReturnValue().Set(Nan::Undefined());
 		return;
 	}
