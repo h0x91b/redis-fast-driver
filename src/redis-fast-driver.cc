@@ -113,9 +113,9 @@ NAN_METHOD(RedisConnector::Connect) {
 	}
 	RedisConnector* self = ObjectWrap::Unwrap<RedisConnector>(info.This());
 	
-	String::Utf8Value v8str(info[0]);
+	Nan::Utf8String v8str(info[0]);
 	const char *host = *v8str;
-	unsigned short port = (unsigned short)info[1]->NumberValue();
+	unsigned short port = (unsigned short)info[1]->Uint32Value(Nan::GetCurrentContext()).ToChecked();
 	Local<Function> connectCb = Local<Function>::Cast(info[2]);
 	self->connectCb.Reset(connectCb);
 	Local<Function> disconnectCb = Local<Function>::Cast(info[3]);
@@ -272,7 +272,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	}
 	
 	for(uint32_t i=0;i<arraylen;i++) {
-		String::Utf8Value str(array->Get(i));
+		Nan::Utf8String str(array->Get(i));
 		uint32_t len = str.length();
 		//LOG("i %u\n", i);
 		//LOG("str: \"%s\"\n", *str);
