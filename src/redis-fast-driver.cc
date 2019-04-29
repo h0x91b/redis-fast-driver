@@ -9,8 +9,8 @@
 
 using namespace v8;
 
-void init(Handle<Object> exports) {
-	RedisConnector::Init(exports);
+NAN_MODULE_INIT(init) {
+	RedisConnector::Init(target);
 }
 
 NODE_MODULE(redis_fast_driver, init)
@@ -26,7 +26,7 @@ RedisConnector::~RedisConnector() {
 	LOG("%s\n", __PRETTY_FUNCTION__);
 }
 
-void RedisConnector::Init(Handle<Object> exports) {
+void RedisConnector::Init(v8::Local<v8::Object> exports) {
 	Nan::HandleScope scope;
 	Local<FunctionTemplate> tpl = Nan::New<FunctionTemplate>(New);
 	tpl->SetClassName(Nan::New<String>("RedisConnector").ToLocalChecked());
@@ -35,8 +35,13 @@ void RedisConnector::Init(Handle<Object> exports) {
 	Nan::SetPrototypeTemplate(tpl, "connect", Nan::New<FunctionTemplate>(Connect));
 	Nan::SetPrototypeTemplate(tpl, "disconnect", Nan::New<FunctionTemplate>(Disconnect));
 	Nan::SetPrototypeTemplate(tpl, "redisCmd", Nan::New<FunctionTemplate>(RedisCmd));
-	constructor.Reset(tpl->GetFunction());
-	exports->Set(Nan::New("RedisConnector").ToLocalChecked(), tpl->GetFunction());
+	
+	constructor.Reset(Nan::GetFunction(tpl).ToLocalChecked());
+	Nan::Set(
+		exports,
+		Nan::New<String>("RedisConnector").ToLocalChecked(),
+		Nan::GetFunction(tpl).ToLocalChecked()
+	);
 }
 
 NAN_METHOD(RedisConnector::New) {
@@ -63,14 +68,14 @@ void RedisConnector::ConnectCallback(const redisAsyncContext *c, int status) {
 		Local<Value> argv[1] = {
 			Nan::New<String>(c->errstr).ToLocalChecked()
 		};
-		Nan::New(self->connectCb)->Call(Nan::GetCurrentContext()->Global(), 1, argv);
+		Nan::Call(Nan::New(self->connectCb), Nan::GetCurrentContext()->Global(), 1, argv);
 		return;
 	}
 	self->is_connected = true;
 	Local<Value> argv[1] = {
 		Nan::Null()
 	};
-	Nan::New(self->connectCb)->Call(Nan::GetCurrentContext()->Global(), 1, argv);
+	Nan::Call(Nan::New(self->connectCb), Nan::GetCurrentContext()->Global(), 1, argv);
 }
 
 void RedisConnector::DisconnectCallback(const redisAsyncContext *c, int status) {
@@ -82,13 +87,13 @@ void RedisConnector::DisconnectCallback(const redisAsyncContext *c, int status) 
 		Local<Value> argv[1] = {
 			Nan::New<String>(c->errstr).ToLocalChecked()
 		};
-		Nan::New(self->disconnectCb)->Call(Nan::GetCurrentContext()->Global(), 1, argv);
+		Nan::Call(Nan::New(self->disconnectCb), Nan::GetCurrentContext()->Global(), 1, argv);
 		return;
 	}
 	Local<Value> argv[1] = {
 		Nan::Null()
 	};
-	Nan::New(self->disconnectCb)->Call(Nan::GetCurrentContext()->Global(), 1, argv);
+	Nan::Call(Nan::New(self->disconnectCb), Nan::GetCurrentContext()->Global(), 1, argv);
 }
 
 NAN_METHOD(RedisConnector::Disconnect) {
@@ -120,7 +125,10 @@ NAN_METHOD(RedisConnector::Connect) {
 	self->connectCb.Reset(connectCb);
 	Local<Function> disconnectCb = Local<Function>::Cast(info[3]);
 	self->disconnectCb.Reset(disconnectCb);
-	Local<Function> setImmediate = Local<Function>::Cast(Nan::GetCurrentContext()->Global()->Get(Nan::New("setImmediate").ToLocalChecked()));
+	Local<Function> setImmediate = Local<Function>::Cast(
+		Nan::Get(Nan::GetCurrentContext()->Global(),
+		Nan::New("setImmediate").ToLocalChecked()
+	).ToLocalChecked());
 	self->setImmediate.Reset(setImmediate);
 	
 	if(strstr(host,"/")==host) {
@@ -135,7 +143,7 @@ NAN_METHOD(RedisConnector::Connect) {
 		Local<Value> argv[1] = {
 			Nan::New<String>(self->c->errstr).ToLocalChecked()
 		};
-		Nan::New(self->connectCb)->Call(Nan::GetCurrentContext()->Global(), 1, argv);
+		Nan::Call(Nan::New(self->connectCb), Nan::GetCurrentContext()->Global(), 1, argv);
 		info.GetReturnValue().Set(Nan::Undefined());
 		return;
 	}
@@ -169,7 +177,7 @@ Local<Value> ParseResponse(redisReply *reply, size_t* size) {
 		break;
 	case REDIS_REPLY_ARRAY:
 		for (size_t i=0; i<reply->elements; i++) {
-			arr->Set(Nan::New<Number>(i), ParseResponse(reply->element[i], size));
+			Nan::Set(arr, Nan::New<Number>(i), ParseResponse(reply->element[i], size));
 		}
 		resp = arr;
 		break;
@@ -210,7 +218,7 @@ void RedisConnector::OnRedisResponse(redisAsyncContext *c, void *r, void *privda
 			Nan::Undefined(),
 			Nan::New<Number>(totalSize)
 		};
-		setImmediate->Call(Nan::GetCurrentContext()->Global(), 4, argv);
+		Nan::Call(setImmediate, Nan::GetCurrentContext()->Global(), 4, argv);
 		return;
 	}
 	Local<Value> resp = ParseResponse(reply, &totalSize);
@@ -221,7 +229,7 @@ void RedisConnector::OnRedisResponse(redisAsyncContext *c, void *r, void *privda
 			Nan::Undefined(),
 			Nan::New<Number>(totalSize)
 		};
-		setImmediate->Call(Nan::GetCurrentContext()->Global(), 4, argv);
+		Nan::Call(setImmediate, Nan::GetCurrentContext()->Global(), 4, argv);
 		return;
 	}
 	
@@ -231,14 +239,7 @@ void RedisConnector::OnRedisResponse(redisAsyncContext *c, void *r, void *privda
 		resp,
 		Nan::New<Number>(totalSize)
 	};
-	setImmediate->Call(Nan::GetCurrentContext()->Global(), 4, argv);
-	
-	// Local<Value> argv[3] = {
-	// 	Nan::Null(),
-	// 	resp,
-	// 	Nan::New<Number>(totalSize)
-	// };
-	// jsCallback->Call(Nan::GetCurrentContext()->Global(), 3, argv);
+	Nan::Call(setImmediate, Nan::GetCurrentContext()->Global(), 4, argv);
 }
 
 NAN_METHOD(RedisConnector::RedisCmd) {
@@ -272,7 +273,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	}
 	
 	for(uint32_t i=0;i<arraylen;i++) {
-		Nan::Utf8String str(array->Get(i));
+		Nan::Utf8String str(Nan::Get(array, i).ToLocalChecked());
 		uint32_t len = str.length();
 		//LOG("i %u\n", i);
 		//LOG("str: \"%s\"\n", *str);
@@ -327,8 +328,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	// LOG("total bufused %zu\n", bufused);
 	//LOG("command buffer filled with: \"%.*s\"\n", int(bufused), buf);
 	uint32_t callback_id = self->callback_id++;
-	Isolate* isolate = Isolate::GetCurrent();
-	self->callbacksMap[callback_id].Reset(isolate, Local<Function>::Cast(info[1]));
+	self->callbacksMap[callback_id].Reset(Local<Function>::Cast(info[1]));
 	
 	redisAsyncCommandArgv(
 		self->c, 

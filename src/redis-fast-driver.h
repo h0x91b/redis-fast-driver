@@ -20,11 +20,11 @@
 
 class RedisConnector : public node::ObjectWrap {
 public:
-	static void Init(v8::Handle<v8::Object> exports);
+	static void Init(v8::Local<v8::Object> exports);
 	Nan::Persistent<v8::Function> connectCb;
 	Nan::Persistent<v8::Function> disconnectCb;
 	Nan::Persistent<v8::Function> setImmediate;
-	std::unordered_map< uint32_t, v8::Persistent<v8::Function> > callbacksMap;
+	std::unordered_map< uint32_t, Nan::Persistent<v8::Function> > callbacksMap;
 	uint32_t callback_id;
 	bool is_connected;
 
