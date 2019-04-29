@@ -40,7 +40,6 @@
     "bluebird": "^3.5.1",
     "eslint": "^4.12.1",
     "intelli-espower-loader": "^1.0.1",
-    "matcha": "^0.7.0",
     "mocha": "^4.0.1",
     "power-assert": "^1.4.4"
   }

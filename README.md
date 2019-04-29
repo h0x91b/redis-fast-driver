@@ -159,7 +159,7 @@ Redis benchmark tool with `-q` flag via tcp/ip on this machine:
 	LRANGE_600 (first 600 elements): 6071.28 requests per second
 	MSET (10 keys): 78064.01 requests per second
 
-Mocha test (`npm run bench`) of Redis-fast-driver:
+Mocha test (`npm run bench` you will need to install `npm i matcha` before, excluded it because of security alerts) of Redis-fast-driver:
 
 	==========================
 	redis-fast-driver: 2.1.2
