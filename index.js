@@ -1,5 +1,5 @@
 'use strict';
-const redis = require('./build/Release/redis-fast-driver');
+const redis = require('./build/Release/redis_fast_driver');
 const EventEmitter = require('events').EventEmitter;
 const os = require('os');
 

@@ -2,133 +2,256 @@
 	#define BUILDING_NODE_EXTENSION
 #endif
 #include <math.h>
-#include <node.h>
+#include <napi.h>
+#include <uv.h>
 #include <node_version.h>
-#include <v8.h>
 #include "redis-fast-driver.h"
 
-using namespace v8;
+using namespace Napi;
 
-NAN_MODULE_INIT(init) {
-	RedisConnector::Init(target);
+// Napi::Object init(Napi::Env env, Napi::Object exports) {
+// 	RedisConnector::Init(env, target, module);
+// }
+
+//NODE_API_MODULE(redis_fast_driver, init)
+// NODE_API_MODULE_INIT(/* exports, module, context */) {
+// 	Init(exports, context);
+// }
+
+// NODE_API_MODULE_INIT(/* exports, module, context */) {
+// 	RedisConnector::Init(exports, module, context);
+// }
+//
+
+NAPI_MODULE_INIT(/*env, exports*/) {
+	RedisConnector::Init(env, exports);
+	return exports;
 }
 
-NODE_MODULE(redis_fast_driver, init)
+// NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
 
-Nan::Persistent<Function> RedisConnector::constructor;
-
-RedisConnector::RedisConnector() {
+RedisConnector::RedisConnector(const napi_callback_info info) : /*Napi::ObjectWrap<RedisConnector>(info), */env_(nullptr), wrapper_(nullptr) {
 	LOG("%s\n", __PRETTY_FUNCTION__);
 	callback_id = 1;
 }
 
 RedisConnector::~RedisConnector() {
 	LOG("%s\n", __PRETTY_FUNCTION__);
+	napi_delete_reference(env_, wrapper_);
 }
 
-void RedisConnector::Init(v8::Local<v8::Object> exports) {
-	Nan::HandleScope scope;
-	Local<FunctionTemplate> tpl = Nan::New<FunctionTemplate>(New);
-	tpl->SetClassName(Nan::New<String>("RedisConnector").ToLocalChecked());
-	tpl->InstanceTemplate()->SetInternalFieldCount(1);
-	// Prototype
-	Nan::SetPrototypeTemplate(tpl, "connect", Nan::New<FunctionTemplate>(Connect));
-	Nan::SetPrototypeTemplate(tpl, "disconnect", Nan::New<FunctionTemplate>(Disconnect));
-	Nan::SetPrototypeTemplate(tpl, "redisCmd", Nan::New<FunctionTemplate>(RedisCmd));
+#define DECLARE_NAPI_METHOD(name, func) \
+	{ name, 0, func, 0, 0, 0, napi_default, 0 }
+
+napi_ref RedisConnector::constructor;
+
+void RedisConnector::Init(Napi::Env env, napi_value exports) {
+	napi_status status;
+	napi_property_descriptor properties[] = {
+		DECLARE_NAPI_METHOD("connect", Connect),
+		DECLARE_NAPI_METHOD("disconnect", Disconnect),
+		DECLARE_NAPI_METHOD("redisCmd", RedisCmd),
+	};
+
+	napi_value cons;
+	status = napi_define_class(env, "RedisConnector", NAPI_AUTO_LENGTH, New, nullptr, 1, properties, &cons);
+	if (status != napi_ok) return;
+
+	status = napi_create_reference(env, cons, 1, &constructor);
+	if (status != napi_ok) return;
+
+	return;
 	
-	constructor.Reset(Nan::GetFunction(tpl).ToLocalChecked());
-	Nan::Set(
-		exports,
-		Nan::New<String>("RedisConnector").ToLocalChecked(),
-		Nan::GetFunction(tpl).ToLocalChecked()
-	);
+	//
+	// Napi::HandleScope scope(env);
+	// Napi::Function cls = DefineClass(env, "RedisConnector", {
+	// 	StaticMethod("connect", &RedisConnector::Connect),
+	// 	StaticMethod("disconnect", &RedisConnector::Disconnect),
+	// 	StaticMethod("redisCmd", &RedisConnector::RedisCmd),
+	// });
+	//
+	// constructor = Napi::Persistent(cls);
+	// constructor.SuppressDestruct();
+	// //exports.Set("RedisConnector", cls);
+	// napi_set_named_property(env, exports, "RedisConnector", cls);
 }
 
-NAN_METHOD(RedisConnector::New) {
-	Nan::HandleScope scope;
+// void RedisConnector::Init(Napi::Object exports) {
+// 	Napi::HandleScope scope(env);
+// 	Napi::FunctionReference tpl = Napi::Function::New(env, New);
+// 	tpl->SetClassName(Napi::String::New(env, "RedisConnector"));
 
-	if (info.IsConstructCall()) {
-		// Invoked as constructor: `new RedisConnector(...)`
-		RedisConnector* obj = new RedisConnector();
-		obj->Wrap(info.This());
-		info.GetReturnValue().Set(info.This());
-	} else {
-		// Invoked as plain function `RedisConnector(...)`, turn into construct call.
-		Nan::ThrowError("This function must be called as a constructor (e.g. new RedisConnector())");
+// 	// Prototype
+// 	Napi::SetPrototypeTemplate(tpl, "connect", Napi::Function::New(env, Connect));
+// 	Napi::SetPrototypeTemplate(tpl, "disconnect", Napi::Function::New(env, Disconnect));
+// 	Napi::SetPrototypeTemplate(tpl, "redisCmd", Napi::Function::New(env, RedisCmd));
+//
+// 	constructor.Reset(Napi::GetFunction(tpl));
+// 	(
+// 		exports).Set(// 		Napi::String::New(env, "RedisConnector"),
+// 		Napi::GetFunction(tpl)
+// 	);
+// }
+
+napi_value RedisConnector::New(napi_env env, napi_callback_info info) {
+	napi_status status;
+
+	size_t argc = 1;
+	napi_value args[1];
+	napi_value jsthis;
+	status = napi_get_cb_info(env, info, &argc, args, &jsthis, nullptr);
+	
+	if(status != napi_ok) {
+		return 0;
 	}
+
+	// napi_valuetype valuetype;
+	// status = napi_typeof(env, args[0], &valuetype);
+	// assert(status == napi_ok);
+	//
+	RedisConnector* obj = new RedisConnector(info);
+	//
+	// if (valuetype == napi_undefined) {
+	// 	obj->counter_ = 0;
+	// } else {
+	// 	status = napi_get_value_double(env, args[0], &obj->counter_);
+	// 	assert(status == napi_ok);
+	// }
+
+	obj->env_ = env;
+	status = napi_wrap(env,
+		jsthis,
+		reinterpret_cast<void*>(obj),
+		RedisConnector::Destructor,
+		nullptr, /* finalize_hint */
+		&obj->wrapper_);
+	
+	if(status != napi_ok) {
+		return 0;
+	}
+
+	return jsthis;
+	
+	
+// Napi::HandleScope scope(env);
+//
+// 	if (info.IsConstructCall()) {
+// 		// Invoked as constructor: `new RedisConnector(...)`
+// 		RedisConnector* obj = new RedisConnector(info);
+// 		obj->Wrap(info.This());
+// 		return info.This();
+// 	} else {
+// 		// Invoked as plain function `RedisConnector(...)`, turn into construct call.
+// 		Napi::Error::New(env, "This function must be called as a constructor (e.g. new RedisConnector())").ThrowAsJavaScriptException();
+// 	}
 }
 
-void RedisConnector::ConnectCallback(const redisAsyncContext *c, int status) {
+void RedisConnector::ConnectCallback(const redisAsyncContext *c, int redisStatus) {
 	LOG("%s\n", __PRETTY_FUNCTION__);
-	Nan::HandleScope scope;
 	RedisConnector *self = (RedisConnector*)c->data;
-	if (status != REDIS_OK) {
+	Napi::HandleScope scope(self->env_);
+	
+	napi_value global, errstr, fnConnectCb, nullObj, return_val;
+	napi_status status = napi_get_global(self->env_, &global);
+	if (status != napi_ok) return;
+	
+	status = napi_create_function(self->env_, NULL, 0, self->connectCb, NULL, &fnConnectCb);
+	if (status != napi_ok) return;
+	
+	if (redisStatus != REDIS_OK) {
 		LOG("%s !REDIS_OK\n", __PRETTY_FUNCTION__);
 		self->is_connected = false;
-		Local<Value> argv[1] = {
-			Nan::New<String>(c->errstr).ToLocalChecked()
+		
+		napi_create_string_utf8(self->env_, c->errstr, strlen(c->errstr), &errstr);
+		napi_value argv[1] = {
+			errstr
 		};
-		Nan::Call(Nan::New(self->connectCb), Nan::GetCurrentContext()->Global(), 1, argv);
+		
+		napi_call_function(self->env_, global, fnConnectCb, 1, argv, &return_val);
 		return;
 	}
 	self->is_connected = true;
-	Local<Value> argv[1] = {
-		Nan::Null()
+	
+	napi_get_null(self->env_, &nullObj);
+	napi_value argv[1] = {
+		nullObj
 	};
-	Nan::Call(Nan::New(self->connectCb), Nan::GetCurrentContext()->Global(), 1, argv);
+	napi_call_function(self->env_, global, fnConnectCb, 1, argv, &return_val);
 }
 
-void RedisConnector::DisconnectCallback(const redisAsyncContext *c, int status) {
+void RedisConnector::DisconnectCallback(const redisAsyncContext *c, int redisStatus) {
 	LOG("%s\n", __PRETTY_FUNCTION__);
-	Nan::HandleScope scope;
 	RedisConnector *self = (RedisConnector*)c->data;
+	Napi::HandleScope scope(self->env_);
+	
+	napi_value global, errstr, fnDisconnectCb, nullObj, return_val;
+	napi_status status = napi_get_global(self->env_, &global);
+	if (status != napi_ok) return;
+	
+	status = napi_create_function(self->env_, NULL, 0, self->disconnectCb, NULL, &fnDisconnectCb);
+	if (status != napi_ok) return;
+	
 	self->is_connected = false;
-	if (status != REDIS_OK) {
-		Local<Value> argv[1] = {
-			Nan::New<String>(c->errstr).ToLocalChecked()
+	
+	if (redisStatus != REDIS_OK) {
+		napi_create_string_utf8(self->env_, c->errstr, strlen(c->errstr), &errstr);
+		napi_value argv[1] = {
+			errstr
 		};
-		Nan::Call(Nan::New(self->disconnectCb), Nan::GetCurrentContext()->Global(), 1, argv);
+		
+		napi_call_function(self->env_, global, fnDisconnectCb, 1, argv, &return_val);
 		return;
 	}
-	Local<Value> argv[1] = {
-		Nan::Null()
+	
+	napi_get_null(self->env_, &nullObj);
+	napi_value argv[1] = {
+		nullObj
 	};
-	Nan::Call(Nan::New(self->disconnectCb), Nan::GetCurrentContext()->Global(), 1, argv);
+	napi_call_function(self->env_, global, fnDisconnectCb, 1, argv, &return_val);
 }
 
-NAN_METHOD(RedisConnector::Disconnect) {
+napi_value RedisConnector::Disconnect(napi_env env, napi_callback_info info) {
 	LOG("%s\n", __PRETTY_FUNCTION__);
-	Nan::HandleScope scope;
-	RedisConnector* self = ObjectWrap::Unwrap<RedisConnector>(info.This());
-	if(self->c->replies.head!=NULL) {
+	Napi::HandleScope scope(env);
+	
+	napi_status status;
+	napi_value jsthis, undefined;
+	
+	status = napi_get_cb_info(env, info, nullptr, nullptr, &jsthis, nullptr);
+	RedisConnector* self;
+	status = napi_unwrap(env, jsthis, reinterpret_cast<void**>(&self));
+	//RedisConnector* self = ObjectWrap::Unwrap<RedisConnector>(info.This());
+	
+	if(self->c->replies.head != NULL) {
 		LOG("there is more callbacks in queue...\n");
 	}
 	if(self->is_connected) redisAsyncDisconnect(self->c);
 	self->is_connected = false;
 	self->c = NULL;
-	info.GetReturnValue().Set(Nan::Undefined());
+	napi_get_undefined(env, &undefined);
+	return undefined;
 }
 
-NAN_METHOD(RedisConnector::Connect) {
+napi_value RedisConnector::Connect(napi_env env, napi_callback_info info) {
 	LOG("%s\n", __PRETTY_FUNCTION__);
-	Nan::HandleScope scope;
+	Napi::HandleScope scope(env);
 	if(info.Length() != 4) {
-		Nan::ThrowError("Wrong arguments count");
-		info.GetReturnValue().Set(Nan::Undefined());
+		Napi::Error::New(env, "Wrong arguments count").ThrowAsJavaScriptException();
+
+		return env.Undefined();
 	}
 	RedisConnector* self = ObjectWrap::Unwrap<RedisConnector>(info.This());
 	
-	Nan::Utf8String v8str(info[0]);
+	std::string v8str = info[0].As<Napi::String>();
 	const char *host = *v8str;
-	unsigned short port = (unsigned short)info[1]->Uint32Value(Nan::GetCurrentContext()).ToChecked();
-	Local<Function> connectCb = Local<Function>::Cast(info[2]);
+	unsigned short port = (unsigned short)info[1].Uint32Value(Napi::GetCurrentContext()).ToChecked();
+	Napi::Function connectCb = info[2].As<Napi::Function>();
 	self->connectCb.Reset(connectCb);
-	Local<Function> disconnectCb = Local<Function>::Cast(info[3]);
+	Napi::Function disconnectCb = info[3].As<Napi::Function>();
 	self->disconnectCb.Reset(disconnectCb);
-	Local<Function> setImmediate = Local<Function>::Cast(
-		Nan::Get(Nan::GetCurrentContext()->Global(),
-		Nan::New("setImmediate").ToLocalChecked()
-	).ToLocalChecked());
+	Napi::Function setImmediate = Napi::Function::Cast(
+		(Napi::GetCurrentContext()->Global()).Get(Napi::String::New(env, "setImmediate")
+	));
 	self->setImmediate.Reset(setImmediate);
 	
 	if(strstr(host,"/")==host) {
@@ -140,67 +263,69 @@ NAN_METHOD(RedisConnector::Connect) {
 	}
 	if (self->c->err) {
 		self->is_connected = false;
-		Local<Value> argv[1] = {
-			Nan::New<String>(self->c->errstr).ToLocalChecked()
+		Napi::Value argv[1] = {
+			Napi::String::New(env, self->c->errstr)
 		};
-		Nan::Call(Nan::New(self->connectCb), Nan::GetCurrentContext()->Global(), 1, argv);
-		info.GetReturnValue().Set(Nan::Undefined());
+		Napi::Call(Napi::New(env, self->connectCb), Napi::GetCurrentContext()->Global(), 1, argv);
+		return env.Undefined();
 		return;
 	}
 	uv_loop_t* loop = uv_default_loop();
 	self->c->data = (void*)self;
+	_env = env;
 	redisLibuvAttach(self->c,loop);
 	redisAsyncSetConnectCallback(self->c,ConnectCallback);
 	redisAsyncSetDisconnectCallback(self->c,DisconnectCallback);
 	
-	info.GetReturnValue().Set(Nan::Undefined());
+	return env.Undefined();
 }
 
-Local<Value> ParseResponse(redisReply *reply, size_t* size) {
-	Nan::EscapableHandleScope scope;
-	Local<Value> resp;
-	Local<Array> arr = Nan::New<Array>();
+Napi::Value ParseResponse(redisReply *reply, size_t* size) {
+	Napi::EscapableHandleScope scope(env);
+	Napi::Value resp;
+	Napi::Array arr = Napi::Array::New(env);
 	
 	switch(reply->type) {
 	case REDIS_REPLY_NIL:
-		resp = Nan::Null();
+		resp = env.Null();
 		*size += sizeof(NULL);
 		break;
 	case REDIS_REPLY_INTEGER:
-		resp = Nan::New<Number>(reply->integer);
+		resp = Napi::Number::New(env, reply->integer);
 		*size += sizeof(int);
 		break;
 	case REDIS_REPLY_STATUS:
 	case REDIS_REPLY_STRING:
-		resp = Nan::New<String>(reply->str, reply->len).ToLocalChecked();
+		resp = Napi::String::New(env, reply->str, reply->len);
 		*size += reply->len;
 		break;
 	case REDIS_REPLY_ARRAY:
 		for (size_t i=0; i<reply->elements; i++) {
-			Nan::Set(arr, Nan::New<Number>(i), ParseResponse(reply->element[i], size));
+			(arr).Set(Napi::Number::New(env, i), ParseResponse(reply->element[i], size));
 		}
 		resp = arr;
 		break;
 	default:
 		printf("Redis rotocol error, unknown type %d\n", reply->type);
-		Nan::ThrowError("Protocol error, unknown type");
-		return Nan::Undefined();
+		Napi::Error::New(env, "Protocol error, unknown type").ThrowAsJavaScriptException();
+
+		return env.Undefined();
 	}
 	
 	return scope.Escape(resp);
 }
 
 void RedisConnector::OnRedisResponse(redisAsyncContext *c, void *r, void *privdata) {
-	Nan::HandleScope scope;
+	Napi::HandleScope scope(env);
 	size_t totalSize = 0;
 	//LOG("%s\n", __PRETTY_FUNCTION__);
 	redisReply *reply = (redisReply*)r;
 	uint32_t callback_id = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(privdata));
 	if (reply == NULL) return;
 	RedisConnector *self = (RedisConnector*)c->data;
-	Local<Function> jsCallback = Nan::New(self->callbacksMap[callback_id]);
-	Nan::Callback cb(jsCallback);
-	Local<Function> setImmediate = Nan::New(self->setImmediate);
+	Napi::Function jsCallback = Napi::New(env, self->callbacksMap[callback_id]);
+	Napi::FunctionReference cb(jsCallback);
+	Napi::Function setImmediate = Napi::New(env, self->setImmediate);
 	if(!(c->c.flags & REDIS_SUBSCRIBED || c->c.flags & REDIS_MONITORING)) {
 		// LOG("delete, flags %i id %i\n", c->c.flags, callback_id);
 		self->callbacksMap[callback_id].Reset();
@@ -212,37 +337,37 @@ void RedisConnector::OnRedisResponse(redisAsyncContext *c, void *r, void *privda
 	if (reply->type == REDIS_REPLY_ERROR) {
 		//LOG("[%d] redis error: %s\n", callback_id, reply->str);
 		totalSize += reply->len;
-		Local<Value> argv[4] = {
+		Napi::Value argv[4] = {
 			jsCallback,
-			Nan::New(reply->str).ToLocalChecked(),
-			Nan::Undefined(),
-			Nan::New<Number>(totalSize)
+			Napi::New(env, reply->str),
+			env.Undefined(),
+			Napi::Number::New(env, totalSize)
 		};
-		Nan::Call(setImmediate, Nan::GetCurrentContext()->Global(), 4, argv);
+		Napi::Call(setImmediate, Napi::GetCurrentContext()->Global(), 4, argv);
 		return;
 	}
-	Local<Value> resp = ParseResponse(reply, &totalSize);
+	Napi::Value resp = ParseResponse(reply, &totalSize);
 	if( resp->IsUndefined() ) {
-		Local<Value> argv[4] = {
+		Napi::Value argv[4] = {
 			jsCallback,
-			Nan::New<String>("Protocol error, can not parse answer from redis").ToLocalChecked(),
-			Nan::Undefined(),
-			Nan::New<Number>(totalSize)
+			Napi::String::New(env, "Protocol error, can not parse answer from redis"),
+			env.Undefined(),
+			Napi::Number::New(env, totalSize)
 		};
-		Nan::Call(setImmediate, Nan::GetCurrentContext()->Global(), 4, argv);
+		Napi::Call(setImmediate, Napi::GetCurrentContext()->Global(), 4, argv);
 		return;
 	}
 	
-	Local<Value> argv[4] = {
+	Napi::Value argv[4] = {
 		jsCallback,
-		Nan::Null(),
+		env.Null(),
 		resp,
-		Nan::New<Number>(totalSize)
+		Napi::Number::New(env, totalSize)
 	};
-	Nan::Call(setImmediate, Nan::GetCurrentContext()->Global(), 4, argv);
+	Napi::Call(setImmediate, Napi::GetCurrentContext()->Global(), 4, argv);
 }
 
-NAN_METHOD(RedisConnector::RedisCmd) {
+napi_value RedisConnector::RedisCmd(napi_env env, napi_callback_info info) {
 	//LOG("%s\n", __PRETTY_FUNCTION__);
 	static size_t bufsize = RFD_COMMAND_BUFFER_SIZE;
 	static char* buf = (char*)malloc(bufsize);
@@ -251,14 +376,15 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	static char **argv = (char**)malloc(argvroom * sizeof(char*));
 	
 	size_t bufused = 0;
-	Nan::HandleScope scope;
+	Napi::HandleScope scope(env);
 	if(info.Length() != 2) {
-		Nan::ThrowError("Wrong arguments count");
-		info.GetReturnValue().Set(Nan::Undefined());
+		Napi::Error::New(env, "Wrong arguments count").ThrowAsJavaScriptException();
+
+		return env.Undefined();
 	}
 	RedisConnector* self = ObjectWrap::Unwrap<RedisConnector>(info.This());
 	
-	Local<Array> array = Local<Array>::Cast(info[0]);
+	Napi::Array array = info[0].As<Napi::Array>();
 	size_t arraylen = array->Length();
 
 	if(arraylen > argvroom) {
@@ -273,8 +399,8 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	}
 	
 	for(uint32_t i=0;i<arraylen;i++) {
-		Nan::Utf8String str(Nan::Get(array, i).ToLocalChecked());
-		uint32_t len = str.length();
+		std::string str = (array).Get(i.As<Napi::String>());
+		uint32_t len = str.Length();
 		//LOG("i %u\n", i);
 		//LOG("str: \"%s\"\n", *str);
 		//LOG("len %u\n", len);
@@ -328,7 +454,7 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 	// LOG("total bufused %zu\n", bufused);
 	//LOG("command buffer filled with: \"%.*s\"\n", int(bufused), buf);
 	uint32_t callback_id = self->callback_id++;
-	self->callbacksMap[callback_id].Reset(Local<Function>::Cast(info[1]));
+	self->callbacksMap[callback_id].Reset(info[1].As<Napi::Function>());
 	
 	redisAsyncCommandArgv(
 		self->c, 
@@ -338,5 +464,5 @@ NAN_METHOD(RedisConnector::RedisCmd) {
 		(const char**)argv,
 		(const size_t*)argvlen
 	);
-	info.GetReturnValue().Set(Nan::Undefined());
+	return env.Undefined();
 }
