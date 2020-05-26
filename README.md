@@ -250,6 +250,29 @@ ioredis `npm run bench` on same machine for comparison
 	37,174 op/s » javascript parser + dropBufferSupport: true
 	24,955 op/s » javascript parser
 
+# Pipelining
+
+The driver is working using async API, async API works by nature as pipelining, so no speed boost will be archived.
+
+But any way you still can use pipelining to make sure that all transaction will be done in one request:
+
+Example:
+
+```js
+// init pipeline mode
+r.rawCall(['multi']);
+	r.rawCall(['echo', 'hello world']);
+	r.rawCall(['ping']);
+	r.rawCall(['incr', 'qqq']);
+	r.rawCall(['set', 'foo', 'bar']);
+	r.rawCall(['get', 'foo']);
+// execute all commands above once
+	r.rawCall(['exec'], function(e, resp){
+	console.log('exec resp', resp);
+	// exec resp [ 'hello world', 'PONG', 1, 'OK', 'bar' ]
+});
+```
+
 # Author
 
 Arseniy Pavlenko h0x91b@gmail.com
