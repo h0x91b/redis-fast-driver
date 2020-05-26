@@ -267,7 +267,7 @@ r.rawCall(['multi']);
 	r.rawCall(['set', 'foo', 'bar']);
 	r.rawCall(['get', 'foo']);
 // execute all commands above once
-	r.rawCall(['exec'], function(e, resp){
+r.rawCall(['exec'], function(e, resp){
 	console.log('exec resp', resp);
 	// exec resp [ 'hello world', 'PONG', 1, 'OK', 'bar' ]
 });
