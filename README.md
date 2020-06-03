@@ -1,11 +1,11 @@
 # Redis-fast-driver
 
-Trully async redis driver designed for max performance. Extremly simple, extremely fast.
+Truly async redis driver designed for maximum performance. Extremely simple, extremely fast.
 
-This node module uses hiredis async library for connection and for parsing written on C by Salvatore Sanfilippo.
+This node module uses the hiredis async library for connection and parsing written in C by Salvatore Sanfilippo.
 
-All redis commands including PUB/SUB and MONITOR works fine, this driver 2 years on my production enviroment under really high load (30k ops/sec each redis in cluster).
-Also this driver used in https://github.com/joaojeronimo/node_redis_cluster and in my fork https://github.com/h0x91b/fast-redis-cluster
+All redis commands including PUB/SUB and MONITOR work. This driver has been in use for two years on my production environment under extremely high loads (30k ops/sec per redis per cluster).
+This driver is also used in https://github.com/joaojeronimo/node_redis_cluster and in my fork https://github.com/h0x91b/fast-redis-cluster
 
 [![Build Status](https://travis-ci.org/h0x91b/redis-fast-driver.svg?branch=master)](https://travis-ci.org/h0x91b/redis-fast-driver)
 
@@ -29,16 +29,16 @@ var r = new Redis({
 	auth: '123', //optional password, if needed
 	db: 5, //optional db selection
 	autoConnect: true, //will connect after creation
-	doNotSetClientName: false, //will set connection name (you can see connections by running CLIENT LIST on redis server)
-	doNotRunQuitOnEnd: false, //when you call `end()`, driver tries to send `QUIT` command to redis before actual end
+	doNotSetClientName: false, //will set connection name (you can see current connections by running CLIENT LIST on the redis server)
+	doNotRunQuitOnEnd: false, //when you call `end()`, driver attempts to send `QUIT` command to redis before actual end
 });
 
-//happen only once
+//happens only once
 r.on('ready', function(){
 	console.log('redis ready');
 });
 
-//happen each time when reconnected
+//happens every time it connects
 r.on('connect', function(){
 	console.log('redis connected');
 });
@@ -61,10 +61,10 @@ r.on('end', function() {
 });
 
 //rawCall function has 2 arguments,
-//1 - array which contain a redis command
-//2 - optional callback
+//1 - an array which contain a redis command
+//2 - an optional callback
 //Redis command is case insesitive, e.g. you can specify HMGET as HMGET, hmget or HmGeT
-//but keys and value are case sensitive, foo, Foo, FoO not the same...
+//but keys and value are case sensitive, foo, Foo, FoO are not the same...
 r.rawCall(['set', 'foo', 'bar'], function(err, resp){
 	console.log('SET via rawCall command returns err: %s, resp: %s', err, resp);
 });
@@ -73,7 +73,7 @@ r.rawCall(['ping'], function(e, resp){
 	console.log('ping', e, resp);
 });
 
-// Also has built-in ES6 Promise support
+// Also has built-in ES6 Promise support (at the cost of a performance hit)
 r.rawCallAsync(['ping'])
 .then((resp) => {
 	console.log('ping', resp);
@@ -82,23 +82,23 @@ r.rawCallAsync(['ping'])
 	console.error(e);
 });
 
-//types are decoded exactly as redis returns it
+//types are decoded exactly as redis returns them
 //e.g. GET will return string
 r.rawCall(['set', 'number', 123]);
 r.rawCall(['get', 'number'], function(err, resp){
 	//type of "resp" will be "string"
-	//this is not related to driver this is behaviour of redis...
+	//this is not related to driver this is normal redis behaviour...
 	console.log('The value: "%s", number key becomes typeof %s', resp, typeof resp);
 });
 
-//but INCR command on same key will return a number
+//but the INCR command on the same key will return a number
 r.rawCall(['incr', 'number'], function(err, resp){
 	//type of "resp" will be a "number"
 	console.log('The value after INCR: "%s", number key becomes typeof %s', resp, typeof resp);
 });
-//"number" type will be also on INCRBY ZSCORE HLEN and each other redis command which return a number.
+//"number" type will also be returned on INCRBY ZSCORE HLEN and on each other redis command which returns a number.
 
-//ZRANGE will return an Array, same as redis returns..
+//ZRANGE will return an Array, same as redis.
 r.rawCall(['zadd', 'sortedset', 1, 'a', 2, 'b', 3, 'c']);
 r.rawCall(['zrange', 'sortedset', 0, -1], function(err, resp){
 	//type of will be "number"
@@ -107,7 +107,7 @@ r.rawCall(['zrange', 'sortedset', 0, -1], function(err, resp){
 
 //SCAN, HSCAN, SSCAN and other *SCAN* commands will return an Array within Array, like this:
 // [ 245, ['key1', 'key2', 'key3'] ]
-// first entry (245) - cursor, second one - Array of keys.
+// first entry (245) - cursor, second entry - Array of keys.
 r.rawCall(['hscan', 'hset:1', 0], function(e, resp){
 	console.log('hscan 0', e, resp);
 });
@@ -120,7 +120,7 @@ r.rawCall(['zadd', 'zset:1', 1, 'a', 2, 'b', 3, 'c', 4, 'd'], function(e, resp){
 	console.log('zset', e, resp);
 });
 
-//HMGET and HGETALL also returns an Array
+//HMGET and HGETALL also return an Array
 r.rawCall(['hgetall', 'hset:1'], function(e, resp){
 	console.log('HGETALL', e, resp);
 });
@@ -134,7 +134,7 @@ r.rawCall(['zrange', 'zset:1', 0, -1], function(e, resp){
 
 # Speed
 
-Works MUCH faster then node-redis, 20-50% faster then `ioredis` and even faster then `redis-benchmark` tool.
+Works MUCH faster then node-redis, 20-50% faster then `ioredis` and even faster then the `redis-benchmark` tool.
 
 Results for my MacBook Pro (Retina, 15-inch, Mid 2014, 2.5 GHz Intel Core i7) via tcp/ip.
 
@@ -252,9 +252,9 @@ ioredis `npm run bench` on same machine for comparison
 
 # Pipelining
 
-The driver is working using async API, async API works by nature as pipelining, so no speed boost will be archived.
+Pipelining works out of the box. The driver works using the async API and the async API defaults to pipelining. 
 
-But any way you still can use pipelining to make sure that all transaction will be done in one request:
+You can still use pipelining to guarantee that all transactions will executed in one request:
 
 Example:
 
