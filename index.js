@@ -148,13 +148,13 @@ class Redis extends EventEmitter {
 
   _onDisconnect(e) {
     if (this.destroyed) return;
-    if (e) {
-      this.emit('error', new Error(e));
-    }
     this.ready = false;
     this.connecting = false;
     clearTimeout(this.connectTimeoutId);
     this.emit('disconnect');
+    if (e) {
+      this.emit('error', new Error(e));
+    }
     this.reconnect();
   }
 
