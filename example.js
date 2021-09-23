@@ -1,4 +1,4 @@
-var Redis = require('.');
+var Redis = require('./index');
 //var Redis = require('redis-fast-driver');
 
 var r = new Redis({

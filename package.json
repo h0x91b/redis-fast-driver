@@ -1,6 +1,6 @@
 {
   "name": "redis-fast-driver",
-  "version": "2.1.5",
+  "version": "2.1.6-beta.0",
   "description": "Fast truly async driver for redis (based on hiredis async version)",
   "main": "index.js",
   "engines": {
@@ -37,10 +37,12 @@
     "nan": "latest"
   },
   "devDependencies": {
+    "@types/node": "^16.9.6",
     "bluebird": "^3.5.1",
     "eslint": "^4.12.1",
     "intelli-espower-loader": "^1.0.1",
     "mocha": "^4.0.1",
     "power-assert": "^1.4.4"
-  }
+  },
+  "typings": "./index.d.ts"
 }
