@@ -11,7 +11,6 @@ const defaultOptions = {
   maxRetries: -1,
   tryToReconnect: true,
   reconnectTimeout: 1000,
-  connectTimeout: 5000,
   autoConnect: true,
   doNotSetClientName: false,
   doNotRunQuitOnEnd: false
@@ -33,7 +32,6 @@ class Redis extends EventEmitter {
     this.connecting = false;
     this.queue = [];
     this.redis = new redis.RedisConnector();
-    this.connectTimeoutId = null;
     this.reconnectTimeoutId = null;
     this.reconnects = 0;
     this.onDisconnect = this._onDisconnect.bind(this);
@@ -44,20 +42,12 @@ class Redis extends EventEmitter {
   }
 
   connect() {
-    if (this.destroyed) return;
-    const onError = (e) => {
-      this.emit('error', new Error(e));
-      this.reconnect();
-    };
     try {
       this.connecting = true;
       this.redis.connect(this.opts.host, this.opts.port, this.onConnect, this.onDisconnect);
-      this.connectTimeoutId = setTimeout(() => {
-        this.redis.disconnect();
-        onError('Connection Timeout.');
-      }, this.opts.connectTimeout);
     } catch(e) {
-      onError(e);
+      this.emit('error', new Error(e));
+      this.reconnect();
     }
   }
 
@@ -140,7 +130,6 @@ class Redis extends EventEmitter {
           this.emit('ready');
         }
         this.reconnects = 0;
-        clearTimeout(this.connectTimeoutId);
         this.emit('connect');
       });
     });
@@ -150,7 +139,6 @@ class Redis extends EventEmitter {
     if (this.destroyed) return;
     this.ready = false;
     this.connecting = false;
-    clearTimeout(this.connectTimeoutId);
     this.emit('disconnect');
     if (e) {
       this.emit('error', new Error(e));
