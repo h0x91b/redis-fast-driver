@@ -127,6 +127,55 @@ describe('redis-fast-driver', function() {
       // onConnect() called, realizes destroyed, calls redis.disconnect
       assert(disconnected === true);
     });
+
+    it('Disconnects if timeout during connect', async function() {
+      const timeout = 20;
+      redis = new Redis({autoConnect: false,
+        doNotSetClientName: true,
+        doNotRunQuitOnEnd: true,
+        connectTimeout: timeout,
+        reconnectTimeout: 0,
+      });
+
+      redis.redis.connect = function(host, port, onConnect, onDisconnect) {
+        // setTimeout(onDisconnect, timeout);
+      };
+      redis.redis.disconnect = function() {
+        // noop to avoid SIGSEGV because we didn't really connect
+      };
+
+      let error;
+      redis.on('error', (e) => {
+        error = e;
+      });
+      redis.on('connect', () => console.log('connected'));
+
+      redis.connect();
+
+      // Allow the adapter to reconnect a bunch of times to assert the state works as we expect
+      let start = Date.now();
+      let last = 0;
+      for (let i = 0; i < 10; i++) {
+        await new Promise((resolve) => redis.once('reconnecting', resolve));
+        assert(error.message === 'Connection Timeout.');
+        assert(redis.reconnects === i + 1);
+
+        // Assert this took roughly as long as the timeout to fire
+        const timeElapsed = Date.now() - start;
+        assert(timeElapsed >= timeout && timeElapsed <= timeout * 2);
+        start = Date.now();
+      }
+
+      // Now actually reconnect
+      redis.redis.connect = function(host, port, onConnect, onDisconnect) {
+        onConnect();
+      };
+      await Promise.delay(timeout * 1.5);
+      assert(redis.reconnects === 0);
+      assert(redis.ready);
+      redis.end();
+      assert(redis.destroyed);
+    });
   });
 
   describe('rawCall', function() {
@@ -164,12 +213,12 @@ describe('redis-fast-driver', function() {
       const zrange = await rawCall(['zrange', key, 0, -1]);
       assert.deepEqual(zrange, ['a', 'b', 'c']);
     });
-    
+
     it('del hset:1', async function() {
       await rawCall(['del', 'hset:1']);
       assert(1 === 1);
     });
-    
+
     it('hmset', async function() {
       const hmset = await rawCall(['hmset', 'hset:1', 'a', 1, 'b', 2, 'c', 3]);
       assert(hmset === 'OK');
@@ -184,7 +233,7 @@ describe('redis-fast-driver', function() {
       const hgetall = await rawCall(['hgetall', 'hset:1']);
       assert.deepEqual(hgetall, ['a', '1', 'b', '2', 'c', '3']);
     });
-    
+
     it('del zset', async function() {
       const zadd = await rawCall(['del', 'zset:1']);
       assert(1 === 1);
@@ -213,7 +262,7 @@ describe('redis-fast-driver', function() {
       const result = await rawCall(['GET', 'key']);
       assert.ok(bigBuff === result);
     });
-    
+
     it('works correctly when command buffer needs to be resized', async function() {
       const cmd = ['HMSET', 'hset:1'];
       for(let i=0;i<=128;i++) {
