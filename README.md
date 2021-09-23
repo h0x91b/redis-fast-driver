@@ -31,10 +31,6 @@ var r = new Redis({
 	autoConnect: true, //will connect after creation
 	doNotSetClientName: false, //will set connection name (you can see current connections by running CLIENT LIST on the redis server)
 	doNotRunQuitOnEnd: false, //when you call `end()`, driver attempts to send `QUIT` command to redis before actual end
-	// If a connection failure occurs, this is the time to wait before initiating a reconnect
-	reconnectTimeout: 1000,
-	// Amount of time to wait for an initial connection to be successful before trying again
-	connectTimeout: 5000,
 });
 
 //happens only once
