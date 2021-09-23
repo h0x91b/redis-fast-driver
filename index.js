@@ -199,6 +199,8 @@ class Redis extends EventEmitter {
     this.ready = false;
     this.destroyed = true;
     this.queue = []; // prevents possible memleak
+    // Can still be present if connection started first time but not succeeded
+    clearTimeout(this.connectTimeoutId);
 
     // If we were once connected, disconnect
     if (this.redis && this.readyFirstTime) {

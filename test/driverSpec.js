@@ -173,8 +173,8 @@ describe('redis-fast-driver', function() {
       await Promise.delay(timeout * 1.5);
       assert(redis.reconnects === 0);
       assert(redis.ready);
-      assert(redis.connected);
       redis.end();
+      assert(redis.destroyed);
     });
   });
 
