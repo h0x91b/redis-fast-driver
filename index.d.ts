@@ -14,7 +14,7 @@ interface RedisOptions {
     doNotRunQuitOnEnd: boolean;
 }
 
-type Callback<T = string> = (err: Error | null, result: T) => void;
+type Callback<T = any> = (err: null | string, result: T) => void;
 
 declare class Redis extends EventEmitter {
     constructor(opts?: RedisOptions);
@@ -24,7 +24,9 @@ declare class Redis extends EventEmitter {
     reconnect(): void;
     selectDb(cb: Callback): void;
     sendAuth(cb: Callback): void;
-    rawCall<T = string>(args: (string | Buffer)[], cb?: Callback<T>): void;
-    rawCallAsync<T = string>(args: (string | Buffer)[]): Promise<T>;
+    rawCall<T = any>(args: (string | Buffer)[], cb?: Callback<T>): void;
+    rawCallAsync<T = any>(args: (string | Buffer)[]): Promise<T>;
     end(): void;
 }
+
+export = Redis;
