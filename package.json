@@ -39,7 +39,7 @@
   "devDependencies": {
     "@types/node": "^16.9.6",
     "bluebird": "^3.5.1",
-    "eslint": "^4.12.1",
+    "eslint": "^8.27.0",
     "intelli-espower-loader": "^1.0.1",
     "mocha": "^9.1.1",
     "power-assert": "^1.4.4"
