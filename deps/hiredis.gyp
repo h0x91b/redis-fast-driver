@@ -12,6 +12,7 @@
         './hiredis/sds.c',
         './hiredis/async.c',
         './hiredis/read.c',
+        './hiredis/alloc.c'
       ],
       'conditions': [
         ['OS=="mac"', {
