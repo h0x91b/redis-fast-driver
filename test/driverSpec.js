@@ -290,7 +290,7 @@ describe('redis-fast-driver', function() {
           await rawCall(['zrange', 'zset:1', 1, 'a', 2, 'b', 3, 'c', 4, 'd']);
           assert(false);
         } catch (e) {
-          assert(/not an integer or out of range/.test(e.message));
+          assert(/syntax error/.test(e.message));
         }
       });
     });
