@@ -40,6 +40,14 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <wincrypt.h>
+#ifdef OPENSSL_IS_BORINGSSL
+#undef X509_NAME
+#undef X509_EXTENSIONS
+#undef PKCS7_ISSUER_AND_SERIAL
+#undef PKCS7_SIGNER_INFO
+#undef OCSP_REQUEST
+#undef OCSP_RESPONSE
+#endif
 #else
 #include <pthread.h>
 #endif
@@ -50,6 +58,8 @@
 #include "win32.h"
 #include "async_private.h"
 #include "hiredis_ssl.h"
+
+#define OPENSSL_1_1_0 0x10100000L
 
 void __redisSetError(redisContext *c, int type, const char *str);
 
@@ -92,7 +102,7 @@ redisContextFuncs redisContextSSLFuncs;
  * Note that this is only required for OpenSSL < 1.1.0.
  */
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if OPENSSL_VERSION_NUMBER < OPENSSL_1_1_0
 #define HIREDIS_USE_CRYPTO_LOCKS
 #endif
 
@@ -185,7 +195,7 @@ const char *redisSSLContextGetError(redisSSLContextError error)
         case REDIS_SSL_CTX_PRIVATE_KEY_LOAD_FAILED:
             return "Failed to load private key";
         case REDIS_SSL_CTX_OS_CERTSTORE_OPEN_FAILED:
-            return "Failed to open system certifcate store";
+            return "Failed to open system certificate store";
         case REDIS_SSL_CTX_OS_CERT_ADD_FAILED:
             return "Failed to add CA certificates obtained from system to the SSL context";
         default:
@@ -248,13 +258,25 @@ redisSSLContext *redisCreateSSLContextWithOptions(redisSSLOptions *options, redi
     if (ctx == NULL)
         goto error;
 
-    ctx->ssl_ctx = SSL_CTX_new(SSLv23_client_method());
+    const SSL_METHOD *ssl_method;
+#if OPENSSL_VERSION_NUMBER >= OPENSSL_1_1_0
+    ssl_method = TLS_client_method();
+#else
+    ssl_method = SSLv23_client_method();
+#endif
+
+    ctx->ssl_ctx = SSL_CTX_new(ssl_method);
     if (!ctx->ssl_ctx) {
         if (error) *error = REDIS_SSL_CTX_CREATE_FAILED;
         goto error;
     }
 
-    SSL_CTX_set_options(ctx->ssl_ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);
+#if OPENSSL_VERSION_NUMBER >= OPENSSL_1_1_0
+    SSL_CTX_set_min_proto_version(ctx->ssl_ctx, TLS1_2_VERSION);
+#else
+    SSL_CTX_set_options(ctx->ssl_ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1);
+#endif
+
     SSL_CTX_set_verify(ctx->ssl_ctx, options->verify_mode, NULL);
 
     if ((cert_filename != NULL && private_key_filename == NULL) ||

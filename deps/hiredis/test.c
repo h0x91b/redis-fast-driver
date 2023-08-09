@@ -78,7 +78,7 @@ static int tests = 0, fails = 0, skips = 0;
 
 static void millisleep(int ms)
 {
-#if _MSC_VER
+#ifdef _MSC_VER
     Sleep(ms);
 #else
     usleep(ms*1000);
@@ -409,10 +409,19 @@ static void test_tcp_options(struct config cfg) {
     redisContext *c;
 
     c = do_connect(cfg);
+
     test("We can enable TCP_KEEPALIVE: ");
     test_cond(redisEnableKeepAlive(c) == REDIS_OK);
 
-    disconnect(c, 0);
+#ifdef TCP_USER_TIMEOUT
+    test("We can set TCP_USER_TIMEOUT: ");
+    test_cond(redisSetTcpUserTimeout(c, 100) == REDIS_OK);
+#else
+    test("Setting TCP_USER_TIMEOUT errors when unsupported: ");
+    test_cond(redisSetTcpUserTimeout(c, 100) == REDIS_ERR && c->err == REDIS_ERR_IO);
+#endif
+
+    redisFree(c);
 }
 
 static void test_reply_reader(void) {
@@ -684,6 +693,16 @@ static void test_reply_reader(void) {
     freeReplyObject(reply);
     redisReaderFree(reader);
 
+    test("Correctly parses RESP3 double -Nan: ");
+    reader = redisReaderCreate();
+    redisReaderFeed(reader, ",-nan\r\n", 7);
+    ret = redisReaderGetReply(reader, &reply);
+    test_cond(ret == REDIS_OK &&
+              ((redisReply*)reply)->type == REDIS_REPLY_DOUBLE &&
+              isnan(((redisReply*)reply)->dval));
+    freeReplyObject(reply);
+    redisReaderFree(reader);
+
     test("Can parse RESP3 nil: ");
     reader = redisReaderCreate();
     redisReaderFeed(reader, "_\r\n",3);
@@ -871,9 +890,9 @@ static void test_allocator_injection(void) {
 
 #define HIREDIS_BAD_DOMAIN "idontexist-noreally.com"
 static void test_blocking_connection_errors(void) {
-    redisContext *c;
     struct addrinfo hints = {.ai_family = AF_INET};
     struct addrinfo *ai_tmp = NULL;
+    redisContext *c;
 
     int rv = getaddrinfo(HIREDIS_BAD_DOMAIN, "6379", &hints, &ai_tmp);
     if (rv != 0) {
@@ -900,10 +919,24 @@ static void test_blocking_connection_errors(void) {
     }
 
 #ifndef _WIN32
+    redisOptions opt = {0};
+    struct timeval tv;
+
     test("Returns error when the port is not open: ");
     c = redisConnect((char*)"localhost", 1);
     test_cond(c->err == REDIS_ERR_IO &&
         strcmp(c->errstr,"Connection refused") == 0);
+    redisFree(c);
+
+
+    /* Verify we don't regress from the fix in PR #1180 */
+    test("We don't clobber connection exception with setsockopt error: ");
+    tv = (struct timeval){.tv_sec = 0, .tv_usec = 500000};
+    opt.command_timeout = opt.connect_timeout = &tv;
+    REDIS_OPTIONS_SET_TCP(&opt, "localhost", 10337);
+    c = redisConnectWithOptions(&opt);
+    test_cond(c->err == REDIS_ERR_IO &&
+              strcmp(c->errstr, "Connection refused") == 0);
     redisFree(c);
 
     test("Returns error when the unix_sock socket path doesn't accept connections: ");
@@ -1543,6 +1576,9 @@ static void test_throughput(struct config config) {
 // }
 
 #ifdef HIREDIS_TEST_ASYNC
+
+#pragma GCC diagnostic ignored "-Woverlength-strings"   /* required on gcc 4.8.x due to assert statements */
+
 struct event_base *base;
 
 typedef struct TestState {
