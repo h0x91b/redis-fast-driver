@@ -392,12 +392,12 @@ int redisvFormatCommand(char **target, const char *format, va_list ap) {
                     while (*_p != '\0' && strchr(flags,*_p) != NULL) _p++;
 
                     /* Field width */
-                    while (*_p != '\0' && isdigit(*_p)) _p++;
+                    while (*_p != '\0' && isdigit((int) *_p)) _p++;
 
                     /* Precision */
                     if (*_p == '.') {
                         _p++;
-                        while (*_p != '\0' && isdigit(*_p)) _p++;
+                        while (*_p != '\0' && isdigit((int) *_p)) _p++;
                     }
 
                     /* Copy va_list before consuming with va_arg */
@@ -860,7 +860,9 @@ redisContext *redisConnectWithOptions(const redisOptions *options) {
         return NULL;
     }
 
-    if (options->command_timeout != NULL && (c->flags & REDIS_BLOCK) && c->fd != REDIS_INVALID_FD) {
+    if (c->err == 0 && c->fd != REDIS_INVALID_FD &&
+        options->command_timeout != NULL && (c->flags & REDIS_BLOCK))
+    {
         redisContextSetTimeout(c, *options->command_timeout);
     }
 
@@ -942,11 +944,18 @@ int redisSetTimeout(redisContext *c, const struct timeval tv) {
     return REDIS_ERR;
 }
 
+int redisEnableKeepAliveWithInterval(redisContext *c, int interval) {
+    return redisKeepAlive(c, interval);
+}
+
 /* Enable connection KeepAlive. */
 int redisEnableKeepAlive(redisContext *c) {
-    if (redisKeepAlive(c, REDIS_KEEPALIVE_INTERVAL) != REDIS_OK)
-        return REDIS_ERR;
-    return REDIS_OK;
+    return redisKeepAlive(c, REDIS_KEEPALIVE_INTERVAL);
+}
+
+/* Set the socket option TCP_USER_TIMEOUT. */
+int redisSetTcpUserTimeout(redisContext *c, unsigned int timeout) {
+    return redisContextSetTcpUserTimeout(c, timeout);
 }
 
 /* Set a user provided RESP3 PUSH handler and return any old one set. */
